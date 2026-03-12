@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# SessionStart hook for spec-driven-dev plugin
+
+set -euo pipefail
+
+# Determine plugin root directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Read using-sdd bootstrapper skill
+using_sdd_content=$(cat "${PLUGIN_ROOT}/skills/using-sdd/SKILL.md" 2>&1 || echo "Error reading using-sdd skill")
+
+# Check peer dependencies
+warnings=""
+
+# Check superpowers plugin
+superpowers_found=false
+if [ -d "${HOME}/.claude/plugins/cache/claude-plugins-official/superpowers" ] 2>/dev/null; then
+  superpowers_found=true
+fi
+# Also check sibling plugin directories
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -d "$(dirname "${CLAUDE_PLUGIN_ROOT}")/superpowers" ] 2>/dev/null; then
+  superpowers_found=true
+fi
+if [ "$superpowers_found" = false ]; then
+  warnings="${warnings}\n⚠️ **superpowers plugin not found** — TDD, systematic-debugging, brainstorming, and verification skills will be unavailable. Install with: \`claude plugin add superpowers\`"
+fi
+
+# Check engram
+if ! command -v engram &>/dev/null 2>&1; then
+  warnings="${warnings}\n⚠️ **engram not found** — SDD artifact persistence will use inline-only mode. Install from: https://github.com/gentleman-programming/engram"
+fi
+
+# Escape string for JSON embedding using bash parameter substitution
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
+
+using_sdd_escaped=$(escape_for_json "$using_sdd_content")
+warnings_escaped=$(escape_for_json "$warnings")
+
+session_context="<EXTREMELY_IMPORTANT>\nYou have spec-driven-dev installed.\n\n**Below is the full content of your 'spec-driven-dev:using-sdd' skill - your introduction to SDD. For all other skills, use the 'Skill' tool:**\n\n${using_sdd_escaped}\n\n${warnings_escaped}\n</EXTREMELY_IMPORTANT>"
+
+# Output context injection as JSON.
+# Claude Code sets CLAUDE_PLUGIN_ROOT — emit only hookSpecificOutput
+# Other platforms (Cursor, etc.) — emit only additional_context
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  cat <<EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "${session_context}"
+  }
+}
+EOF
+else
+  cat <<EOF
+{
+  "additional_context": "${session_context}"
+}
+EOF
+fi
+
+exit 0

@@ -1,0 +1,12 @@
+# Dev-only (user-specific)
+.claude/
+CLAUDE.md
+
+# Reference material (not part of plugin)
+5.0.1/
+
+# OS files
+.DS_Store
+
+# Logs
+*.log

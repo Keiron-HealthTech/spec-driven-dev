@@ -1,0 +1,12 @@
+{
+  "name": "spec-driven-dev",
+  "description": "Spec-Driven Development workflow for Claude Code: 6-phase planning, sub-agent orchestration, and artifact management",
+  "version": "1.0.0",
+  "author": {
+    "name": "Keiron-HealthTech"
+  },
+  "homepage": "https://github.com/Keiron-HealthTech/spec-driven-dev",
+  "repository": "https://github.com/Keiron-HealthTech/spec-driven-dev",
+  "license": "Apache-2.0",
+  "keywords": ["sdd", "specs", "planning", "workflow", "orchestration", "architecture", "tdd"]
+}
