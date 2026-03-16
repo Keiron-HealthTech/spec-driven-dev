@@ -7,6 +7,6 @@
   },
   "homepage": "https://github.com/Keiron-HealthTech/spec-driven-dev",
   "repository": "https://github.com/Keiron-HealthTech/spec-driven-dev",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "keywords": ["sdd", "specs", "planning", "workflow", "orchestration", "architecture", "tdd"]
 }

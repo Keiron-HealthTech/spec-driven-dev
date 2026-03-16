@@ -1,0 +1,14 @@
+{
+  "name": "spec-driven-dev",
+  "owner": {
+    "name": "Keiron-HealthTech"
+  },
+  "plugins": [
+    {
+      "name": "spec-driven-dev",
+      "description": "Spec-Driven Development workflow for Claude Code: 6-phase planning, sub-agent orchestration, and artifact management",
+      "version": "1.0.0",
+      "source": "./"
+    }
+  ]
+}
