@@ -184,8 +184,10 @@ Launch `sdd-verify` sub-agent with `superpowers:verification-before-completion`:
 
 ### Phase 6: Completion
 
-1. Launch `sdd-archive` (spec sync + archive)
-2. `superpowers:finishing-a-development-branch`:
+1. If artifact store mode is NOT `none`: Launch `sdd-archive` (spec sync + archive)
+2. `superpowers:finishing-a-development-branch` with these overrides:
+   - When creating a PR: ALWAYS use `--draft` flag
+   - If `.github/pull_request_template.md` exists in the repo, use it as the PR body structure (fill in each section based on the change context)
    - Verify tests pass
    - Present 4 options: merge locally / create PR / keep branch / discard
    - Execute chosen option
