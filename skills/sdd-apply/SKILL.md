@@ -53,10 +53,10 @@ Detect TDD mode from (in priority order):
 ├── openspec/config.yaml → rules.apply.tdd (true/false — highest priority)
 ├── User's installed skills (e.g., tdd/SKILL.md exists)
 ├── Existing test patterns in the codebase (test files alongside source)
-└── Default: standard mode (write code first, then verify)
+└── Default: TDD mode (RED-GREEN-REFACTOR)
 
-IF TDD mode is detected → use Step 2a (TDD Workflow)
-IF standard mode → use Step 2b (Standard Workflow)
+IF TDD mode is active → use Step 2a (TDD Workflow)
+IF standard mode is explicitly configured → use Step 2b (Standard Workflow)
 ```
 
 ### Step 2a: Implement Tasks (TDD Workflow — RED → GREEN → REFACTOR)
@@ -102,6 +102,16 @@ Detect test runner from:
 ```
 
 **Important**: If any user coding skills are installed (e.g., `tdd/SKILL.md`, `pytest/SKILL.md`, `vitest/SKILL.md`), read and follow those skill patterns for writing tests.
+
+#### Handling Tasks With Tracer Sub-Steps
+
+Some tasks have two sub-steps: a **tracer sub-step** (thin connectivity proof) followed by a **behavior sub-step** (full spec scenario). These tasks are marked with a "New connection:" field in the task description.
+
+When present, execute each sub-step as a complete TDD cycle:
+1. **Sub-step A (Tracer):** Write test proving connectivity, Verify RED, implement thinnest wiring, Verify GREEN, commit.
+2. **Sub-step B (Behavior):** Write test for spec scenario, Verify RED, implement real logic, Verify GREEN, refactor, commit.
+
+This mirrors the standard TDD cycle -- each sub-step is just a focused application of RED-GREEN-REFACTOR.
 
 ### Step 2b: Implement Tasks (Standard Workflow)
 
@@ -201,9 +211,34 @@ When the orchestrator uses `superpowers:subagent-driven-development` for impleme
 ### Systematic Debugging
 If implementation hits unexpected failures:
 - STOP attempting random fixes
-- Follow `superpowers:systematic-debugging` (4-phase root cause investigation)
-- If 3+ fixes fail → surface to orchestrator for architectural discussion
+- Follow `skills/sdd-debug/SKILL.md` protocol for root cause investigation
+- If `superpowers:systematic-debugging` is also available, it complements the built-in debug protocol
+- If 3+ fixes fail → STOP and escalate to orchestrator for architectural discussion
 - Report root cause analysis in return summary
+
+## Anti-Patterns
+
+### TDD Anti-Patterns (Reject All)
+
+See `skills/_shared/tdd-protocol.md` for the canonical reference.
+
+| Anti-Pattern | Why It's Wrong | What to Do Instead |
+|---|---|---|
+| Write code first, test after | Tests become confirmation bias | Delete the code, write the test first |
+| Mock everything | Tests pass but production breaks | Use real dependencies where possible |
+| Test the mock, not the behavior | Green tests, broken features | Test observable behavior |
+| Skip verify-RED | Test might pass for wrong reason | Always run and verify failure |
+| Add "just one more thing" in GREEN | Feature creep, untested code | One test, one behavior, one commit |
+| Refactor before green | Changing too many things at once | Get green first, then clean up |
+
+### Implementation Anti-Patterns (Reject All)
+
+| Anti-Pattern | What to Do Instead |
+|---|---|
+| Implement tasks not assigned to you | Only implement your assigned tasks |
+| Deviate from design silently | Note deviations in return summary |
+| Skip reading specs before coding | Specs are your acceptance criteria -- always read first |
+| "While I'm here" improvements | YAGNI -- only what the task demands |
 
 ## Rules
 

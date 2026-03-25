@@ -18,6 +18,7 @@ You are a sub-agent responsible for creating the TASK BREAKDOWN. You take the pr
 ## What You Receive
 
 From the orchestrator:
+
 - Change name
 - Artifact store mode (`engram | openspec | none`)
 
@@ -34,6 +35,7 @@ Read and follow `skills/_shared/persistence-contract.md` for mode resolution rul
 ### Step 1: Analyze the Design
 
 From the design document, identify:
+
 - All files that need to be created/modified/deleted
 - The dependency order (what must come first)
 - Testing requirements per component
@@ -93,12 +95,12 @@ openspec/changes/{change-name}/
 
 Each task MUST be:
 
-| Criteria | Example ✅ | Anti-example ❌ |
-|----------|-----------|----------------|
-| **Specific** | "Create `internal/auth/middleware.go` with JWT validation" | "Add auth" |
-| **Actionable** | "Add `ValidateToken()` method to `AuthService`" | "Handle tokens" |
-| **Verifiable** | "Test: `POST /login` returns 401 without token" | "Make sure it works" |
-| **Small** | One file or one logical unit of work | "Implement the feature" |
+| Criteria       | Example ✅                                                 | Anti-example ❌         |
+| -------------- | ---------------------------------------------------------- | ----------------------- |
+| **Specific**   | "Create `internal/auth/middleware.go` with JWT validation" | "Add auth"              |
+| **Actionable** | "Add `ValidateToken()` method to `AuthService`"            | "Handle tokens"         |
+| **Verifiable** | "Test: `POST /login` returns 401 without token"            | "Make sure it works"    |
+| **Small**      | One file or one logical unit of work                       | "Implement the feature" |
 
 ### Phase Organization Guidelines
 
@@ -123,6 +125,92 @@ Phase 5: Cleanup (if needed)
   └─ Documentation, remove dead code, polish
 ```
 
+### Connected Pairs Registry
+
+When a change spans multiple layers, each unique layer connection must be proven with a thin connectivity test before full behavior is built on top. The task breakdown includes a **Connected Pairs** table.
+
+#### How It Works
+
+1. **Extract layers** from the design artifact's architecture section (e.g., API handler, service, repository, database).
+2. **For each task**, identify which layer pairs the task's files span.
+3. **Check the registry**: if a [Source Layer -> Target Layer] pair is NOT in the Connected Pairs table:
+   - Prepend a **tracer sub-step** to the task (before the behavior sub-step).
+   - The tracer sub-step proves bare connectivity: the call crosses the boundary and returns _something_ (even a hardcoded value).
+   - Add the pair to the registry, referencing the task that proved it.
+4. **If the pair IS already in the registry**: emit the task with only the behavior sub-step (standard task format).
+
+This is mechanical: if the connection is not in the registry, add the tracer sub-step. No judgment call required.
+
+#### Registry Format (in the tasks artifact)
+
+Include this table after the phase overview and before task details:
+
+```markdown
+| #   | Source Layer        | Target Layer           | Proven By                  |
+| --- | ------------------- | ---------------------- | -------------------------- |
+| 1   | {e.g., API handler} | {e.g., AuthService}    | Task 0.1 (tracer)          |
+| 2   | {e.g., AuthService} | {e.g., UserRepository} | Task 1.2 (tracer sub-step) |
+```
+
+The registry is populated starting from Phase 0 (tracer bullet) and grows as subsequent tasks prove new connections.
+
+### Task Formats (TDD Mode)
+
+When TDD is active, tasks use structured formats instead of the simple checklist. Two formats exist:
+
+#### Standard Task (single layer or already-connected layers)
+
+```markdown
+### Task {phase}.{number}: {descriptive name}
+
+**Spec reference:** REQ-{id}, Scenario {n}
+**Files:** {exact file paths to create or modify}
+**Dependencies:** Task {x.y} must complete first
+
+**TDD Steps:**
+
+1. **Write test:** Create test in {test-file-path} that asserts {behavior}
+2. **Verify RED:** Run {test-command}. Expect failure.
+3. **Implement:** In {file-path}, write {brief description}
+4. **Verify GREEN:** Run {test-command}. Expect pass.
+5. **Refactor:** {specific or "No refactoring needed"}
+6. **Commit:** {commit message referencing spec scenario}
+
+**Acceptance:** {how to know this task is done}
+```
+
+#### Task With Tracer Sub-Step (new layer connection)
+
+Use this format when the task introduces a layer connection not yet in the Connected Pairs registry.
+
+```markdown
+### Task {phase}.{number}: {descriptive name}
+
+**Spec reference:** REQ-{id}, Scenario {n}
+**Files:** {exact file paths}
+**Dependencies:** Task {x.y}
+**New connection:** {Source Layer} -> {Target Layer}
+
+**Sub-step A -- Tracer (connectivity proof):**
+
+1. Write test asserting {Source} can call {Target} and get any response
+2. Verify RED
+3. Implement thinnest wiring from {Source} to {Target}
+4. Verify GREEN
+5. Commit: "Wire {Source} -> {Target} (tracer)"
+
+**Sub-step B -- Behavior (spec scenario):**
+
+1. Write test asserting {spec-driven behavior}
+2. Verify RED
+3. Implement real logic
+4. Verify GREEN
+5. Refactor
+6. Commit: {message referencing spec scenario}
+
+**Acceptance:** {both connectivity and behavior verified}
+```
+
 ### Step 3: Return Summary
 
 Return to the orchestrator:
@@ -134,17 +222,20 @@ Return to the orchestrator:
 **Location**: openspec/changes/{change-name}/tasks.md
 
 ### Breakdown
-| Phase | Tasks | Focus |
-|-------|-------|-------|
-| Phase 1 | {N} | {Phase name} |
-| Phase 2 | {N} | {Phase name} |
-| Phase 3 | {N} | {Phase name} |
-| Total | {N} | |
+
+| Phase   | Tasks | Focus        |
+| ------- | ----- | ------------ |
+| Phase 1 | {N}   | {Phase name} |
+| Phase 2 | {N}   | {Phase name} |
+| Phase 3 | {N}   | {Phase name} |
+| Total   | {N}   |              |
 
 ### Implementation Order
+
 {Brief description of the recommended order and why}
 
 ### Next Step
+
 Ready for implementation (sdd-apply).
 ```
 
@@ -164,3 +255,6 @@ Ready for implementation (sdd-apply).
 - Apply any `rules.tasks` from `openspec/config.yaml`
 - If the project uses TDD, integrate test-first tasks: RED task (write failing test) → GREEN task (make it pass) → REFACTOR task (clean up)
 - Return a structured envelope with: `status`, `executive_summary`, `detailed_report` (optional), `artifacts`, `next_recommended`, and `risks`
+- When TDD is active, use structured task formats (Standard Task or Task With Tracer Sub-Step) instead of the simple checklist
+- If a task introduces a layer connection not in the Connected Pairs registry, use the Task With Tracer Sub-Step format -- no exceptions
+- The Connected Pairs table MUST appear in the tasks artifact between the phase overview and the first task detail

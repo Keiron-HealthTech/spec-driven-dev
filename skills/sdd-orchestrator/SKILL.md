@@ -77,6 +77,7 @@ When writing/updating artifacts, ALWAYS use `topic_key` for upserts (avoids dupl
 | `/sdd-apply [change-name]` | Implement tasks |
 | `/sdd-verify [change-name]` | Validate implementation |
 | `/sdd-archive [change-name]` | Sync specs + archive + branch completion |
+| `/sdd-debug [change-name]` | Debug unexpected failures with root cause protocol |
 
 ## Command → Skill Mapping
 
@@ -90,6 +91,7 @@ When writing/updating artifacts, ALWAYS use `topic_key` for upserts (avoids dupl
 | `/sdd-apply` | sdd-apply | `skills/sdd-apply/SKILL.md` |
 | `/sdd-verify` | sdd-verify | `skills/sdd-verify/SKILL.md` |
 | `/sdd-archive` | sdd-archive + finishing-a-development-branch | `skills/sdd-archive/SKILL.md` |
+| `/sdd-debug` | sdd-debug | `skills/sdd-debug/SKILL.md` |
 
 ---
 
@@ -151,6 +153,7 @@ Both depend only on the proposal. Wait for BOTH, then present combined summary.
 - ALWAYS includes Phase 0: Tracer Bullet before any other phases
 - Tracer bullet = thinnest vertical slice touching all layers
 - If TDD: tracer bullet tasks follow RED/GREEN/REFACTOR
+- TDD protocol: `skills/_shared/tdd-protocol.md` is the default TDD discipline source
 
 **4b. Workspace Isolation**:
 - Before implementation, suggest git worktree (`superpowers:using-git-worktrees`)
@@ -159,17 +162,17 @@ Both depend only on the proposal. Wait for BOTH, then present combined summary.
 **4c. Implementation** (`sdd-apply` via `superpowers:subagent-driven-development`):
 
 1. **Phase 0: Tracer Bullet** — dispatched alone
-   - Fresh implementer sub-agent follows `superpowers:test-driven-development`
+   - Fresh implementer sub-agent follows `skills/_shared/tdd-protocol.md`; if `superpowers:test-driven-development` is also available, it complements (does not replace) the built-in TDD protocol
    - Two-stage review: spec compliance → code quality
    - **USER GATE**: Present working slice, get feedback before expanding
 
 2. **Phase 1-N: Full implementation** in batches by phase
    - Fresh sub-agent per task
-   - TDD always (`superpowers:test-driven-development`)
+   - TDD via `skills/_shared/tdd-protocol.md`; `superpowers:test-driven-development` complements (does not replace) if available
    - Two-stage review per task
    - After each phase batch, show progress to user
 
-**Bug handling**: If BLOCKED → `superpowers:systematic-debugging` (4-phase root cause investigation)
+**Bug handling**: If BLOCKED → `sdd-debug` (4-phase root cause investigation). If `superpowers:systematic-debugging` is also available, it complements the built-in debug protocol.
 
 ### Phase 5: Verification
 
@@ -211,6 +214,8 @@ brainstorm → proposal → specs ──→ tasks → apply → verify → archi
 - specs and design can be created in parallel (both depend only on proposal)
 - tasks depends on BOTH specs and design
 - verify is optional but recommended before archive
+
+Note: `sdd-debug` can be invoked at any time -- it is not tied to the phase DAG.
 
 ## Orchestrator Rules
 

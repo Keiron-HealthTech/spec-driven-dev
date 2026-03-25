@@ -83,7 +83,7 @@ rules:
     - Keep tasks completable in one session
   apply:
     - Follow existing code patterns
-    tdd: false           # Set to true to enable RED-GREEN-REFACTOR
+    tdd: true            # TDD is ON by default; set to false to disable
     test_command: ""     # e.g., "npm test", "pytest"
   verify:
     test_command: ""     # Override for verification
