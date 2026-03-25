@@ -32,6 +32,10 @@ Read and follow `skills/_shared/persistence-contract.md` for mode resolution rul
 
 ## What to Do
 
+### TDD Protocol Reference
+
+Read and follow `skills/_shared/tdd-protocol.md` for the complete TDD discipline. The Iron Law: NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST. If you write code before the test: delete it.
+
 ### Step 1: Read Context
 
 Before writing ANY code:
@@ -172,15 +176,15 @@ If none, say "None."}
 
 ## Superpowers Integration
 
-### TDD (MANDATORY when TDD mode detected)
-Load and follow `superpowers:test-driven-development`.
-The superpowers TDD skill is AUTHORITATIVE for the RED-GREEN-REFACTOR discipline:
+### TDD (MANDATORY when TDD mode active)
+Read and follow `skills/_shared/tdd-protocol.md` for the complete TDD discipline.
+If `superpowers:test-driven-development` is also available, follow it as well — it complements (does not replace) the built-in TDD protocol.
+If superpowers is not installed, the TDD protocol in `skills/_shared/tdd-protocol.md` is the complete and self-sufficient reference.
 - Iron law: NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
 - Verify RED: run test, confirm it fails for the right reason
 - Verify GREEN: run test, confirm it passes, no other tests broken
-- Rationalization table: "too simple to test", "I'll test after", etc. → all rejected
 Your Step 2a provides the SDD-specific context (specs as acceptance criteria);
-superpowers TDD provides the discipline enforcement. Both apply simultaneously.
+the TDD protocol provides the discipline enforcement. Both apply simultaneously.
 
 ### Tracer Bullet Awareness
 When implementing Phase 0 tasks:
