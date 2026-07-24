@@ -31,6 +31,20 @@ Read and follow `skills/_shared/persistence-contract.md` for mode resolution rul
 
 ## What to Do
 
+### Step 0: Review Gate (BLOCKING)
+
+Before any spec sync or archive move, retrieve the change's review ledger
+(schema and destinations defined in `skills/_shared/review-ledger-contract.md`):
+
+- `engram` → topic `sdd/{change-name}/review-ledger`, using the two-step recovery from `skills/_shared/engram-convention.md` (`mem_search` then `mem_get_observation`)
+- `openspec` → `openspec/changes/{change-name}/review-ledger.md`
+- `none` → the orchestrator provides the inline ledger from the review phase
+
+Then evaluate the gate:
+
+- **BLOCK** the archive if any BLOCKER or CRITICAL row has a status other than `verified`, `refuted`, or `wont-fix`. Return `status: blocked` and list every offending row (id, location, severity, status).
+- If no ledger exists, WARN that this change was implemented without review and require explicit user confirmation before proceeding.
+
 ### Step 1: Sync Delta Specs to Main Specs
 
 For each delta spec in `openspec/changes/{change-name}/specs/`:
