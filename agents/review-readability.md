@@ -28,8 +28,9 @@ lenses).
 
 ## Review Rules
 
-Review ONLY the target diff given in the prompt. Report a finding only with
-concrete evidence at a specific location:
+Review ONLY the target diff given in the prompt, applying the sweep budget the
+contract defines for the `tier` in your prompt — never triage yourself. Report
+a finding only with concrete evidence at a specific location:
 
 1. **Intent-hiding names** — identifiers that misstate or hide what the code
    does; single-letter names outside trivial iterators.
