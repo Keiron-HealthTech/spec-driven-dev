@@ -35,7 +35,7 @@ SDD is a 6-phase workflow for planning and implementing changes with rigor. Each
 | 1. Discovery Loop | Codebase exploration + brainstorming Q&A | `sdd-explore` + orchestrator |
 | 2. Proposal | Change proposal with intent, scope, approach | `sdd-propose` |
 | 3. Spec & Design | Requirements/scenarios + technical design (PARALLEL) | `sdd-spec` + `sdd-design` |
-| 4. Tasks & Implementation | Task breakdown (Phase 0: Tracer Bullet) + code | `sdd-tasks` + `sdd-apply` |
+| 4. Tasks & Implementation + post-apply review | Task breakdown (Phase 0: Tracer Bullet) + code + review | `sdd-tasks` + `sdd-apply` + `sdd-review` |
 | 5. Verification | Prove implementation matches specs with evidence | `sdd-verify` |
 | 6. Completion | Archive specs + branch completion | `sdd-archive` |
 
@@ -49,6 +49,7 @@ SDD is a 6-phase workflow for planning and implementing changes with rigor. Each
 | `/sdd-continue [change-name]` | Create next artifact in dependency chain |
 | `/sdd-ff [change-name]` | Fast-forward: create all planning artifacts |
 | `/sdd-apply [change-name]` | Implement tasks |
+| `/sdd-review [change-name|target]` | Review implemented diff (triage → lenses → refute → fix; JD on request) |
 | `/sdd-verify [change-name]` | Validate implementation |
 | `/sdd-archive [change-name]` | Sync specs + archive + branch completion |
 
@@ -59,6 +60,7 @@ Activate SDD when:
 - User says: "sdd new <name>", "nuevo cambio", "new change", "sdd explore"
 - User says: "sdd ff <name>", "fast forward", "sdd continue"
 - User says: "sdd apply", "implementar", "implement"
+- User says: "sdd review", "revisar código", "review this change", "judgment day", "dual review"
 - User says: "sdd verify", "verificar"
 - User says: "sdd archive", "archivar"
 - User describes a feature/change and you detect it needs planning
@@ -75,13 +77,14 @@ Do NOT force SDD on small tasks (single file edits, quick fixes, questions).
 | `/sdd-continue` | Next needed: `sdd-spec`, `sdd-design`, or `sdd-tasks` |
 | `/sdd-ff` | Orchestrator-managed (all planning phases in sequence) |
 | `/sdd-apply` | `sdd-apply` |
+| `/sdd-review` | `sdd-review` (LEAD-level — the orchestrator loads and follows it; never dispatched as a sub-agent) |
 | `/sdd-verify` | `sdd-verify` |
 | `/sdd-archive` | `sdd-archive` |
 
 ### Dependency Graph
 
 ```
-brainstorm → proposal → specs ──→ tasks → apply → verify → archive
+brainstorm → proposal → specs ──→ tasks → apply → review → verify → archive
                            ↕
                         design
 ```
@@ -90,7 +93,7 @@ brainstorm → proposal → specs ──→ tasks → apply → verify → archi
 
 When SDD is triggered, invoke `sdd-orchestrator` which coordinates the workflow:
 
-1. **Delegate-only**: The orchestrator NEVER executes phase work inline (EXCEPTION: Phase 1 brainstorming Q&A)
+1. **Delegate-only**: The orchestrator NEVER executes phase work inline (EXCEPTIONS: Phase 1 brainstorming Q&A; sdd-review lead coordination — sub-agents cannot launch sub-agents)
 2. Sub-agents have FULL access (read code, write code, run tests, follow coding skills)
 3. Between sub-agent calls: show summary, ask user to proceed
 4. `/sdd-ff`, `/sdd-continue`, `/sdd-new` are META-COMMANDS handled by the orchestrator — NOT skills. NEVER invoke them via the Skill tool.
@@ -110,6 +113,7 @@ When performing these actions, ALWAYS invoke the corresponding skill FIRST:
 | Creating technical design | `sdd-design` |
 | Breaking down tasks | `sdd-tasks` |
 | Implementing tasks | `sdd-apply` |
+| Reviewing an implemented change or diff | `sdd-review` |
 | Verifying implementation | `sdd-verify` |
 | Archiving a change | `sdd-archive` |
 | Initializing SDD in a project | `sdd-init` |
