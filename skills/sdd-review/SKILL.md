@@ -36,12 +36,49 @@ absolute path in every delegate prompt. Never pass a project-relative path:
 review agents run with the user's project as cwd and cannot locate the plugin
 themselves.
 
-## Triage (minimal)
+## Triage
 
-Apply in order; outcomes are mutually exclusive:
+Triage is a deterministic decision procedure, not guidance. Evaluate the rules
+IN ORDER against the target diff; the FIRST matching rule decides. Outcomes are
+mutually exclusive, and rule 5 makes the ordering exhaustive — the same diff
+description always yields the same lens selection.
 
-1. Trivial diff (only docs, comments, or formatting; zero executable code and zero configuration changes) → 0 lenses. Persist an empty ledger recording the triage decision, return `REVIEW: CLEAN`.
-2. Otherwise → dispatch the `review-readability` lens.
+The line budget defaults to 400 changed lines; a project overrides it via the
+`review.budget_lines` key in `openspec/config.yaml`. Triage thresholds live in
+this skill; every other numeric budget and ceiling lives in the contract.
+
+1. **Trivial** — every changed line is docs, comments, or formatting; zero
+   executable code and zero configuration changes; total changed lines at or
+   under the line budget → **0 lenses**. Persist an empty ledger recording the
+   triage decision, return `REVIEW: CLEAN`, and stop.
+2. **Hot path** — the diff touches authentication, security, or payments code,
+   at any diff size → **full 4R** (all four lenses), tier `full-4r`.
+3. **Over budget** — changed non-documentation lines exceed the line budget →
+   **full 4R**, tier `full-4r`.
+4. **Large pure docs** — total changed lines exceed the line budget AND every
+   changed line is human-facing documentation → **`review-readability` only**,
+   tier `standard`.
+5. **Standard** — everything else → **exactly ONE lens**, tier `standard`,
+   selected by the dominant-risk table below. No rule in this procedure permits
+   dispatching a second lens for a standard diff.
+
+### Dominant-Risk Table (rule 5 only)
+
+Rows are ordered by impact, highest first:
+
+| Dominant change class | Lens |
+|-----------------------|------|
+| Security, permissions, data exposure, dependencies | `review-risk` |
+| Integration, partial failure, recovery, error handling, fallbacks | `review-resilience` |
+| Behavior, state, tests | `review-reliability` |
+| Naming, structure | `review-readability` |
+
+Classify the diff by the change class that dominates its changed lines and
+select that row's lens. When more than one class matches, select the SINGLE
+highest matching row in the table — never add lenses.
+
+Every delegate prompt passes the resulting `tier`; agents apply the contract's
+sweep budget for that tier and never triage themselves.
 
 ## Dispatch
 
