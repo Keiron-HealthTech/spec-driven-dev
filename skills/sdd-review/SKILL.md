@@ -24,8 +24,9 @@ inspection happens inside the review agents.
 
 ## What You Receive
 
-- A change name (e.g., `add-dark-mode`) OR an ad-hoc target (PR number, branch, or user-stated scope)
+- A change name (e.g., `add-dark-mode`) OR an ad-hoc target (PR number, branch, or user-stated scope). A review is CHANGE-BOUND when it belongs to an SDD change; otherwise it is AD-HOC (`/sdd-review` works with or without an active change).
 - Artifact store mode (`engram | openspec | none`) — resolution rules in `skills/_shared/persistence-contract.md`
+- Judgment Day flag — set ONLY when the user explicitly requested judgment day / dual review
 
 ## Contract Resolution
 
@@ -200,7 +201,12 @@ upserting the same destination, never creating a new one:
   `review/{target-slug}/ledger`, deriving the slug as `pr-{number}` for a PR,
   else the kebab-cased branch name, else the kebab-cased user-stated target.
 - `openspec` and `none`: destinations per the contract's Persistence Mapping
-  (§10).
+  (§10). Ad-hoc reviews in `openspec` and `none` modes are INLINE ONLY —
+  the review loop completes within the session, with no file or topic created.
+
+A change-bound review persists to its change ledger destination in every mode
+(mode `none`: the inline ledger is handed back to the orchestrator, which
+supplies it to `sdd-archive` for the Step 0 gate).
 
 An empty ledger is persisted too — it records the triage decision and lenses
 run (mode `none`: reported inline).
@@ -241,15 +247,35 @@ and never automatically after apply. Tier is `judgment-day`.
 
 ```markdown
 ## Review Summary
-**Target**: {change|slug} · **Tier**: {trivial|standard}
-**Lenses run**: {list}
-**Findings**: {n} ({severity counts})
+**Target**: {change|slug} · **Tier**: {trivial|standard|full-4r|judgment-day}
+**Lenses/Judges run**: {list} · **Fix rounds**: {0|1|2}
+**Findings**: {n} BLOCKER, {n} CRITICAL, {n} info → {n} verified, {n} refuted, {n} wont-fix, {n} open
 **Ledger**: {topic + observation id | path | inline}
 REVIEW: CLEAN | RESOLVED | OPEN-FINDINGS | ESCALATED
 ```
 
+Close with exactly ONE outcome token:
+
+| Token | Meaning |
+|-------|---------|
+| `REVIEW: CLEAN` | Trivial tier, or the run produced zero findings |
+| `REVIEW: RESOLVED` | Findings existed and every BLOCKER/CRITICAL row closed (`verified`, `refuted`, or evidenced `wont-fix`); only `info` rows remain |
+| `REVIEW: OPEN-FINDINGS` | One or more BLOCKER/CRITICAL rows remain open (round budget exhausted, or the user declined fixes) |
+| `REVIEW: ESCALATED` | At least one finding needs a human decision (JD contradiction, or a suspect row the user left unresolved) |
+
+Wrap the summary in the standard structured envelope: `status`,
+`executive_summary`, `detailed_report` (the Review Summary above), `artifacts`
+(the ledger reference), `next_recommended`, and `risks`.
+
+Routing for `next_recommended`:
+
+- `CLEAN` / `RESOLVED` → `/sdd-verify {change-name}` (change-bound; ad-hoc reviews end here)
+- `OPEN-FINDINGS` / `ESCALATED` → user decision required (fix round, wont-fix, or accept the risk); the orchestrator MUST NOT auto-proceed to verify
+
 ## Rules
 
 - The coordinator is the ONLY ledger writer — agents emit rows in their replies and never persist anything.
-- The ledger schema, precision gate, and persistence mapping are canonical in `skills/_shared/review-ledger-contract.md` — reference it, never restate it.
+- The ledger schema, precision gate, severity floor, refutation ceilings, and fix-round budget are canonical in `skills/_shared/review-ledger-contract.md` — cite its sections, never redefine its numbers. Triage thresholds (the line budget) live in THIS skill only.
 - ALWAYS persist the ledger, including when it is empty (mode `none`: report it inline).
+- NEVER dispatch the fix agent for `suspect` or `info` rows, and NEVER set `wont-fix` without the user's explicit decision recorded per contract §9.
+- ALWAYS stop at the USER GATE before the first fix round — findings are fixed only with user approval.
