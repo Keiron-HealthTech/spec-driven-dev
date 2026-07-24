@@ -40,10 +40,13 @@ Before any spec sync or archive move, retrieve the change's review ledger
 - `openspec` → `openspec/changes/{change-name}/review-ledger.md`
 - `none` → the orchestrator provides the inline ledger from the review phase
 
-Then evaluate the gate:
+Then evaluate the gate (canonical rule: contract §11):
 
-- **BLOCK** the archive if any BLOCKER or CRITICAL row has a status other than `verified`, `refuted`, or `wont-fix`. Return `status: blocked` and list every offending row (id, location, severity, status).
-- If no ledger exists, WARN that this change was implemented without review and require explicit user confirmation before proceeding.
+- **BLOCK** the archive if any BLOCKER or CRITICAL row has a status other than `verified`, `refuted`, or `wont-fix`. `open` rows, un-reverified `fixed` rows, and JD `suspect` rows all block — a `fixed` row without a verifying re-review is NOT closed; the review loop did not converge and the user must decide, never the agent. Return `status: blocked`, list every offending row (id, location, severity, status), and set `next_recommended`: run `/sdd-review {change-name}` for a fix round, or ask the user for an explicit wont-fix decision.
+- `wont-fix` closes a row ONLY when its evidence records an explicit user decision in the exact form `wont-fix — user decision (YYYY-MM-DD): {reason}`. A wont-fix row without a recorded user decision counts as open and blocks. NEVER set wont-fix yourself — only the user can authorize it, and the sdd-review coordinator records it.
+- Rows with status `info` never block (severity floor, contract §5).
+- If no ledger exists, WARN that this change was implemented without review and require explicit user confirmation before proceeding (backwards compatibility for pre-review changes).
+- Audit trail: List all `wont-fix` and `info` rows in the archive report, and include the ledger observation ID in the lineage.
 
 ### Step 1: Sync Delta Specs to Main Specs
 
@@ -115,6 +118,11 @@ Return to the orchestrator:
 - design.md ✅
 - tasks.md ✅ ({N}/{N} tasks complete)
 
+### Review Gate (Step 0)
+**Ledger**: {topic + observation id | path | inline | none — archived on explicit user confirmation}
+**Wont-fix rows**: {id — recorded user decision | none}
+**Info rows**: {ids | none}
+
 ### Source of Truth Updated
 The following specs now reflect the new behavior:
 - `openspec/specs/{domain}/spec.md`
@@ -133,6 +141,7 @@ Your job is ONLY the archive (spec sync + folder move). Branch completion is han
 ## Rules
 
 - NEVER archive a change that has CRITICAL issues in its verification report
+- NEVER archive while the review ledger has open BLOCKER/CRITICAL rows (Step 0)
 - ALWAYS sync delta specs BEFORE moving to archive
 - When merging into existing specs, PRESERVE requirements not mentioned in the delta
 - Use ISO date format (YYYY-MM-DD) for archive folder prefix
