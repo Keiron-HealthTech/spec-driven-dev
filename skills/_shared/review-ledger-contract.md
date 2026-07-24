@@ -2,18 +2,20 @@
 
 Single source of truth for the review ledger. Review agents and SDD skills
 reference this file by path; they never duplicate its schema or its numbers.
+Every numeric budget and ceiling of the review system lives ONLY in this file
+(triage thresholds live in `skills/sdd-review/SKILL.md`).
 
-## Roles
+## 1. Roles
 
 | Role | Actor | Ledger access |
 |------|-------|---------------|
-| Coordinator | `sdd-review` skill (lead level) | The ONLY ledger writer: merges rows, assigns JD ids, persists/upserts |
+| Coordinator | `sdd-review` skill (lead level) | The ONLY ledger writer: merges rows, assigns JD ids, applies verdicts, persists/upserts |
 | Lens | `review-risk`, `review-readability`, `review-reliability`, `review-resilience` | Emits candidate rows in its reply; never persists |
 | Judge | `jd-judge-a`, `jd-judge-b` | Emits findings without ids in its reply; never persists |
 | Refuter | `review-refuter` | Emits verdict lines in its reply; never persists |
 | Fix agent | `jd-fix-agent` | Reports fixed ids + evidence in its reply; never edits the ledger |
 
-## Ledger Schema
+## 2. Ledger Schema
 
 Every ledger starts with a header recording: change (or ad-hoc target), tier,
 date, and round. Finding rows follow this table:
@@ -29,11 +31,86 @@ date, and round. Finding rows follow this table:
 - `evidence` — concrete evidence for the finding.
 - `verification` — adversarial outcome: `refuter:corroborated|refuted|inconclusive`, `jd:both|a-only|b-only|contradiction`, or `—` (pre-verification / info rows).
 
-## Precision Gate
+## 3. Precision Gate
 
 Report a finding only if it is a real, user-impacting defect you would defend with concrete evidence. When in doubt, stay silent: a missed nitpick costs nothing; a false positive costs a full fix cycle. Style and preference findings are banned unless they obscure a defect.
 
-## Persistence Mapping
+## 4. Sweep Budget
+
+- Standard review: exactly 1 exhaustive sweep of the diff per lens, then stop.
+- Full-4R review: at most 2 sweeps per lens.
+- There is no loop-until-dry mechanism; the sweep budget is the entire pass.
+- The coordinator passes `tier` in every delegate prompt; agents apply the
+  budget for that tier and never triage themselves.
+
+## 5. Severity Floor
+
+- Only BLOCKER/CRITICAL findings that survive adversarial verification enter
+  the fix → re-review loop.
+- WARNING/SUGGESTION findings are recorded exactly once with status `info`.
+  They are never sent to refutation, never re-reviewed in later rounds, and
+  never block archive.
+- `info` is terminal (§9).
+
+## 6. Refutation Protocol
+
+- The coordinator invokes refutation once, after merging lens rows and before
+  any fix work. Only BLOCKER/CRITICAL candidates are included in the batch.
+- The task ceiling is review-level and structural: exactly 1 refuter task
+  (lens `general`) for a standard review; exactly 3 refuter tasks (lenses
+  `correctness`, `exploitability-impact`, `reproducibility`, in parallel) for
+  full-4R — whether the candidate list has 2 findings or 20. NEVER dispatch
+  one refuter task per finding.
+- Every refuter task receives the complete merged candidate list and returns
+  one verdict per finding id.
+- Standard review: a finding is `refuted` only when the general verdict
+  refutes it.
+- Full-4R: voting is independent per finding — a finding is refuted (killed)
+  only when at least 2 of the 3 lens verdicts refute it; a 1-of-3 result or
+  tie keeps it standing.
+- A malformed or missing per-finding verdict defaults to `stands` for that
+  finding: it survives and remains open, never silently dropped.
+- Judgment Day exception: two-judge convergence (§7) replaces refutation; no
+  refuter is dispatched in JD mode.
+
+## 7. Judgment Day Corroboration
+
+- Both judges report the same finding (matched by location and claim) → `confirmed`: status `open`, verification `jd:both`. Confirmed findings become fixable ONLY after the user is asked and approves proceeding to fix.
+- Exactly one judge reports it → `suspect`: status stays `open`, verification `jd:a-only` or `jd:b-only`. A suspect finding is NEVER auto-fixed.
+- The judges contradict each other on the same location → verification `jd:contradiction`: escalate to the human; automated handling stops for that finding.
+- Suspect and contradiction findings resolve only by user decision (fix or wont-fix).
+
+## 8. Fix-Round Budget
+
+- Maximum 2 fix rounds per review.
+- One fix round = the coordinator dispatches `jd-fix-agent` once with ALL
+  confirmed open BLOCKER/CRITICAL ids, then a scoped re-review by the
+  originating lens(es)/judges over the frozen ledger plus the immutable fix
+  delta only — never a fresh full-diff review. Rows with status `info` are
+  excluded from re-review.
+- Re-review confirms a fix → `verified`; re-review rejects it → back to `open`.
+- Anything still open after round 2 is reported to the user as open — the
+  loop never extends; no round 3 exists.
+
+## 9. Status Transitions
+
+```
+open  → refuted    (adversarial verification killed it)
+open  → fixed      (jd-fix-agent applied a fix; the coordinator records it)
+open  → wont-fix   (user decision only)
+fixed → verified   (scoped re-review confirmed the fix)
+fixed → open       (scoped re-review rejected the fix)
+```
+
+- `wont-fix` REQUIRES evidence appended in the exact form
+  `wont-fix — user decision (YYYY-MM-DD): {reason}`. The agent NEVER sets
+  wont-fix on its own; only the user authorizes it and the coordinator
+  records it.
+- `info` is terminal: assigned once to WARNING/SUGGESTION rows, never revisited.
+- `verified`, `refuted`, and evidenced `wont-fix` are the only closed states
+  for BLOCKER/CRITICAL rows.
+
+## 10. Persistence Mapping
 
 Mode resolution is defined by `skills/_shared/persistence-contract.md` — this
 contract never restates it, only maps the ledger destination per mode:
@@ -47,6 +124,40 @@ contract never restates it, only maps the ledger destination per mode:
 An empty ledger (zero findings) is ALWAYS persisted, recording the triage
 decision and lenses run (mode `none`: reported inline instead).
 
-## Attribution
+## 11. Archive Gate
+
+`sdd-archive` (Step 0) enforces this rule over the persisted ledger:
+
+- BLOCK archive while any BLOCKER or CRITICAL row has a status other than
+  `verified`, `refuted`, or `wont-fix`. `open` rows, un-reverified `fixed`
+  rows, and JD suspect rows all mean the review loop did not converge — the
+  user must decide, never the agent.
+- `wont-fix` counts as closed ONLY with the recorded explicit user decision
+  in the §9 evidence form.
+- If no ledger exists for the change, warn that the change was implemented
+  without review and require explicit user confirmation before archiving
+  (backwards compatibility for pre-review changes).
+
+## 12. Maintenance
+
+`agents/jd-judge-a.md` is the single source of truth for the judge body —
+edit jd-judge-a.md only. `agents/jd-judge-b.md` is REGENERATED, never
+hand-edited:
+
+```
+sed -e 's/jd-judge-a/jd-judge-b/g' -e 's/Judge A/Judge B/g' agents/jd-judge-a.md > agents/jd-judge-b.md
+```
+
+Drift check (also runnable as `scripts/check-judges.sh`, exits non-zero on
+drift or a missing judge file):
+
+```
+diff <(sed -e 's/jd-judge-a/jd-judge-X/g' -e 's/Judge A/Judge X/g' agents/jd-judge-a.md) <(sed -e 's/jd-judge-b/jd-judge-X/g' -e 's/Judge B/Judge X/g' agents/jd-judge-b.md)
+```
+
+The only permitted A/B differences are the `name:` frontmatter value and the
+Judge A / Judge B tokens in the description and identity line.
+
+## 13. Attribution
 
 Adapted from gentle-ai (github.com/Gentleman-Programming/gentle-ai), MIT.
