@@ -205,6 +205,38 @@ upserting the same destination, never creating a new one:
 An empty ledger is persisted too — it records the triage decision and lenses
 run (mode `none`: reported inline).
 
+## Judgment Day Mode
+
+Judgment Day (JD) runs ONLY on an explicit user request ("judgment day",
+"dual review"). It REPLACES the lens + refutation pipeline (steps 2, 4, and 5)
+for that target — never both on the same target,
+and never automatically after apply. Tier is `judgment-day`.
+
+- **Blind parallel dispatch**: launch `jd-judge-a` and `jd-judge-b` in PARALLEL
+  over the SAME immutable frozen target, with byte-identical delegate prompts
+  (same contract path, tier, target, and round).
+  Neither prompt ever contains the other judge's output, findings, or any hint
+  of them — the judges are blind; only the coordinator compares their replies
+  after both terminate.
+- **Corroboration** (contract §7): match the two reply sets by
+  location and claim, assign `JD-{NNN}` ids, and record convergence:
+
+  | Convergence | Verification | Handling |
+  |-------------|--------------|----------|
+  | Both judges report it | `jd:both` | `confirmed` — fixable ONLY after the user is asked and approves |
+  | Exactly one judge reports it | `jd:a-only` / `jd:b-only` | `suspect` — the fix agent is NEVER dispatched for it; only the user resolves it (fix or wont-fix) |
+  | The judges contradict each other on the same location | `jd:contradiction` | Escalate to the human. Automated handling stops for that finding |
+
+- **No refuter**: no refuter task is dispatched anywhere in JD mode —
+  two-judge convergence is the corroboration mechanism (contract §6 JD
+  exception).
+- **Fix loop**: same as steps 6–7, with a user ask before EVERY round:
+  user-approved confirmed findings only, then scoped re-judging by BOTH judges
+  (blind again) over the frozen ledger rows plus the immutable fix delta;
+  maximum 2 rounds (contract §8).
+- Any `jd:contradiction`, or a `suspect` row the user leaves unresolved, makes
+  the outcome token `REVIEW: ESCALATED`.
+
 ## Return
 
 ```markdown
