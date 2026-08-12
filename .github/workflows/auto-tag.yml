@@ -44,3 +44,5 @@ jobs:
         uses: linear/linear-release-action@v0
         with:
           access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
+          name: v${{ steps.version.outputs.version }}
+          version: ${{ steps.version.outputs.version }}
