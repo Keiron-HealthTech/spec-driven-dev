@@ -75,6 +75,7 @@ When writing/updating artifacts, ALWAYS use `topic_key` for upserts (avoids dupl
 | `/sdd-continue [change-name]` | Create next artifact in dependency chain |
 | `/sdd-ff [change-name]` | Fast-forward: create all planning artifacts |
 | `/sdd-apply [change-name]` | Implement tasks |
+| `/sdd-review [change-name|target]` | Review implemented diff (triage → lenses → refute → fix; JD on request) |
 | `/sdd-verify [change-name]` | Validate implementation |
 | `/sdd-archive [change-name]` | Sync specs + archive + branch completion |
 | `/sdd-debug [change-name]` | Debug unexpected failures with root cause protocol |
@@ -89,6 +90,7 @@ When writing/updating artifacts, ALWAYS use `topic_key` for upserts (avoids dupl
 | `/sdd-continue` | Next needed from: sdd-spec, sdd-design, sdd-tasks | Check dependency graph below |
 | `/sdd-ff` | Discovery → sdd-propose → sdd-spec + sdd-design → sdd-tasks | All in sequence |
 | `/sdd-apply` | sdd-apply | `skills/sdd-apply/SKILL.md` |
+| `/sdd-review` | sdd-review (LEAD-level — orchestrator loads and follows it; see Rule 10 exceptions) | `skills/sdd-review/SKILL.md` |
 | `/sdd-verify` | sdd-verify | `skills/sdd-verify/SKILL.md` |
 | `/sdd-archive` | sdd-archive + finishing-a-development-branch | `skills/sdd-archive/SKILL.md` |
 | `/sdd-debug` | sdd-debug | `skills/sdd-debug/SKILL.md` |
@@ -174,6 +176,17 @@ Both depend only on the proposal. Wait for BOTH, then present combined summary.
 
 **Bug handling**: If BLOCKED → `sdd-debug` (4-phase root cause investigation). If `superpowers:systematic-debugging` is also available, it complements the built-in debug protocol.
 
+**4d. Review** (`sdd-review` at LEAD level):
+
+After the final apply batch completes (and any sdd-debug resolution), ALWAYS
+invoke the `sdd-review` skill at lead level: load `skills/sdd-review/SKILL.md`
+with the Skill tool and follow it inline (Rule 10 exception (b)). Triage may
+select zero lenses — invoke it regardless; the empty ledger is still persisted.
+
+Outcome routing:
+- `REVIEW: CLEAN` or `REVIEW: RESOLVED` → proceed to Phase 5.
+- `REVIEW: OPEN-FINDINGS` or `REVIEW: ESCALATED` → present the ledger rows to the user and STOP — the user decides fix / wont-fix / proceed.
+
 ### Phase 5: Verification
 
 Launch `sdd-verify` sub-agent with `superpowers:verification-before-completion`:
@@ -181,6 +194,9 @@ Launch `sdd-verify` sub-agent with `superpowers:verification-before-completion`:
 - No "should pass" — only actual test/build results
 - Run custom verification commands from `.claude/commands/` if they exist
 - Spec compliance matrix: scenario is COMPLIANT only when test PASSED
+
+Note: sdd-verify validates SPEC COMPLIANCE; code quality was already handled by Phase 4d review.
+Pass the review outcome (token + ledger ref) to sdd-verify as context.
 
 ### Phase 6: Completion
 
@@ -207,7 +223,7 @@ During ANY phase, if a sub-agent identifies a reusable pattern:
 ## Dependency Graph
 
 ```
-brainstorm → proposal → specs ──→ tasks → apply → verify → archive
+brainstorm → proposal → specs ──→ tasks → apply → review → verify → archive
                            ↕
                         design
 ```
@@ -215,6 +231,8 @@ brainstorm → proposal → specs ──→ tasks → apply → verify → archi
 - brainstorm feeds into proposal (Phase 1 → Phase 2)
 - specs and design can be created in parallel (both depend only on proposal)
 - tasks depends on BOTH specs and design
+- review runs automatically after apply and before verify (Phase 4d)
+- review gates archive: sdd-archive Step 0 reads the persisted review ledger
 - verify is optional but recommended before archive
 
 Note: `sdd-debug` can be invoked at any time -- it is not tied to the phase DAG.
@@ -232,7 +250,9 @@ These rules define what the ORCHESTRATOR (lead/coordinator) does. Sub-agents are
 7. NEVER run phase work inline as the lead. Always delegate.
 8. CRITICAL: `/sdd-ff`, `/sdd-continue`, `/sdd-new` are META-COMMANDS handled by YOU (the orchestrator), NOT skills. NEVER invoke them via the Skill tool. Process them by launching individual Task tool calls for each sub-agent phase.
 9. When a sub-agent's output suggests a next command (e.g. "run /sdd-ff"), treat it as a SUGGESTION TO SHOW THE USER — not as an auto-executable command. Always ask the user before proceeding.
-10. **EXCEPTION to delegate-only**: Phase 1 Discovery Loop brainstorming Q&A is done BY the orchestrator (not delegated), because it requires interactive user conversation. Only the codebase exploration part is delegated to sdd-explore.
+10. **EXCEPTIONS to delegate-only**:
+    - (a) Phase 1 Discovery Loop brainstorming Q&A is done BY the orchestrator (not delegated), because it requires interactive user conversation. Only the codebase exploration part is delegated to sdd-explore.
+    - (b) sdd-review coordination (Phase 4d and `/sdd-review`) — the lead loads `skills/sdd-review/SKILL.md` and launches the review agents itself, because sub-agents cannot launch sub-agents; all code inspection remains inside the review agents.
 
 **Sub-agents have FULL access** — they read source code, write code, run commands, and follow the user's coding skills (TDD workflows, framework conventions, testing patterns, etc.).
 
@@ -260,6 +280,12 @@ Task(
 )
 ```
 
+**Review agents are the exception**: they are dedicated plugin agents, launched as
+`Task(subagent_type: 'spec-driven-dev:{agent-name}')` (e.g.
+`spec-driven-dev:review-risk`) with the review-ledger-contract absolute path in
+the prompt — NOT as `subagent_type: 'general'` plus a skill file. Plugin agents
+register as `{plugin-name}:{agent-name}` and require the exact namespaced name.
+
 ## State Tracking
 
 After each sub-agent completes, track:
@@ -267,6 +293,7 @@ After each sub-agent completes, track:
 - Change name
 - Which artifacts exist (brainstorm ✓, proposal ✓, specs ✓, design ✓, tasks ✓)
 - Which tasks are complete (if in apply phase)
+- Review: tier, ledger ref (topic/observation id or path), open/verified/info counts, fix rounds used, outcome token
 - Any issues or blockers reported
 
 ## Fast-Forward (/sdd-ff)

@@ -239,11 +239,14 @@ See `skills/_shared/tdd-protocol.md` for the canonical reference.
 | Deviate from design silently | Note deviations in return summary |
 | Skip reading specs before coding | Specs are your acceptance criteria -- always read first |
 | "While I'm here" improvements | YAGNI -- only what the task demands |
+| Comments narrating what the code does | Comment ONLY non-obvious constraints/invariants the code can't express |
+| Comments referencing SDD artifacts ("Task 1.2", "per REQ-01", "saved to Engram") | Code must stand alone -- a reader who never saw the plan must understand it |
 
 ## Rules
 
 - ALWAYS read specs before implementing — specs are your acceptance criteria
 - ALWAYS follow the design decisions — don't freelance a different approach
+- Code comments: ONLY what is strictly necessary. NEVER reference the SDD plan, tasks, specs, phases, or Engram in code comments — spec traceability lives in commit messages and SDD artifacts, never in code
 - ALWAYS match existing code patterns and conventions in the project
 - In `openspec` mode, mark tasks complete in `tasks.md` AS you go, not at the end
 - If you discover the design is wrong or incomplete, NOTE IT in your return summary — don't silently deviate
