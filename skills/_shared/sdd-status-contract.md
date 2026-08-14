@@ -325,12 +325,69 @@ Refreshing the cache is the orchestrator's act, never the renderer's.
 
 ## 11. Gate Precedence (G1 / G2 / G3)
 
-TBD.
+Three gates coexist. They are not alternatives to each other and MUST NOT be unified.
+
+| # | Gate | Kind | Owner | Fires |
+|---|------|------|-------|-------|
+| G1 | Tracer-bullet USER GATE | Human approval | User | Once per change, after the tracer batch |
+| G2 | Review USER GATE | Human approval | User | Before the first fix round |
+| G3 | Phase gatekeeper | Agent validation | Orchestrator, self-policing | Every phase boundary |
+
+1. **G3 is a pre-condition, never a substitute.** The phase produces an artifact, G3 evaluates
+   it, and only a PASSING artifact is presented at G1 or G2. The user is never asked to approve
+   an artifact G3 has not cleared.
+2. **G3 never asks for approval.** A failure triggers the §9 re-run-once loop, not a prompt. A
+   second failure is a STOP reported as `status: blocked` with `blockedReasons[]` — a report,
+   not an approval request. A user MAY override, recorded in the §9 form.
+3. **G3 never opens review budget.** It inspects artifacts, not diffs: no lens, no refuter, no
+   Judgment Day. It does not fire inside the review loop.
+4. **Exactly one G3 evaluation per phase boundary.** No double-firing around a user gate. At
+   the tracer-bullet boundary G3 runs once on the apply-progress artifact BEFORE G1 is
+   presented.
+5. **Precedence order**: `user override > G3 STOP > orchestrator routing preference`. A human
+   decision outranks the machine gate; the machine gate outranks the orchestrator's
+   convenience.
 
 ## 12. Limits — What This Contract Cannot Enforce
 
-TBD.
+**This gate is `self-policing`.** The orchestrator runs it, grades its own delegates, and is
+the same agent that decides whether to run it at all. Nothing written here can stop it skipping
+its own gate, and nothing detects that it did. This is a convention this plugin asks agents to
+honour, not a guarantee it can give.
+
+The design this is adapted from backed the same shape with a native binary: a Git-common-dir
+attempt ledger with compare-and-swap semantics, cryptographic receipts, and a transactional
+review object — machinery that turns "must validate" into "cannot proceed without a receipt".
+That machinery is **deliberately absent** here and MUST NOT be simulated in markdown:
+
+- the compare-and-swap attempt ledger and its ordinals and budgets;
+- cryptographic **receipts** and the `reviewReceipt` / `reviewBundle` / `reviewTransaction` /
+  `reviewState` / `reviewContext` / `reviewGate` objects;
+- `actionContext` and `allowedEditRoots`;
+- strict machine parsing of verification results;
+- `relationships`, `remediationState`, `planningHome`, `changeRoot`, `artifactPaths`,
+  `contextFiles`, `applyState`, `phaseInstructions`, and a hybrid store.
+
+What ships instead is an explicit, drift-checkable convention plus real fresh context at the
+two boundaries where drift hurts most. That is a smaller claim, and it is the honest one.
+
+**Admission rule**: every section of this contract must be either agent-attestable or
+grep-checkable. A section that is neither does not belong here.
 
 ## 13. Maintenance and Drift Check
 
-TBD.
+- The drift checks are `scripts/check-envelope.sh` and `scripts/check-commands.sh`, run as
+  jobs in `.github/workflows/checks.yml` on every pull request.
+- **The scripts extract their expected values from this contract, never hardcode them.**
+  Renaming a section heading breaks extraction and fails the check loudly. That tripwire is
+  deliberate: a checker carrying its own copy of an enum is copy number two.
+- **Editorial rule** — `skills/sdd-review/SKILL.md` MUST NOT contain the literal string
+  `ORCHESTRATOR GATE`; it says "the executor gate" instead. That is what lets the negative
+  guard assertion be a plain fixed-string search with no regex and no ambiguity.
+- **Editorial rule** — concrete routing values are written in the §3 citation form, so
+  membership is checkable without parsing prose.
+- Adding a routing token means editing §3 and nothing else. Every consumer cites.
+
+---
+Adapted from gentle-ai (github.com/Gentleman-Programming/gentle-ai), MIT. Adapted, not ported:
+the portion requiring gentle-ai's Go binary is deliberately absent (§12).
