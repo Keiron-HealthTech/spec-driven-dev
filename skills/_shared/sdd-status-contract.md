@@ -105,7 +105,7 @@ artifactRefs:
   <type>: { path: <absolute path> }                             # openspec
 taskProgress: { total: 0, completed: 0, pending: 0, allComplete: false }
 dependencies:   # one key per phase, each: blocked | ready | all_done
-  proposal · spec · design · tasks · apply · review · verify · archive
+  brainstorm / proposal / spec / design / tasks / apply / review / verify / archive
 nextRecommended: <one §3 token>
 blockedReasons: []
 ```
@@ -115,9 +115,16 @@ blockedReasons: []
 1. **`artifacts`** — one entry per change-scoped type registered in
    `skills/_shared/engram-convention.md`, currently ten. A type absent from that registry
    MUST NOT appear in the map.
-2. **`taskProgress`** — exactly `total`, `completed`, `pending`, `allComplete`, where
-   `pending = total - completed` and `allComplete = (total > 0 AND completed == total)`.
-   With no tasks artifact: `total = 0`, `allComplete = false`.
+2. **`taskProgress`** — exactly `total`, `completed`, `pending`, `allComplete`. It spans two
+   artifacts, because neither one knows both halves: the plan knows how many tasks exist, the
+   record of work knows how many were done.
+   - `total` — the number of task ids in the `tasks` artifact, counting headings that match
+     `### T{phase}.{n}`. No tasks artifact: `0`.
+   - `completed` — the number of those tasks carrying recorded evidence in the `apply-progress`
+     artifact. No apply-progress artifact yet: `0`, which is honest — nothing has been applied.
+   - `pending` — `total - completed`.
+   - `allComplete` — `total > 0` and `pending == 0`. With no tasks artifact, `total` is `0`
+     and `allComplete` is false.
 3. **`dependencies`** — one state per phase, per §6.
 4. **`blockedReasons`** — an array, empty when nothing is blocked. Each entry MUST name at
    least one registered artifact type or a review ledger row id, and MUST NOT carry a claim
@@ -146,11 +153,64 @@ the same token.
 
 ## 5. The `partial` Rule
 
-TBD.
+`partial` is permitted ONLY where the artifact itself carries a countable signal. Exactly
+three of the ten registered change-scoped types do:
+
+| Type | Countable signal | `partial` when |
+|------|------------------|----------------|
+| `tasks` | task lines marked `[x]` versus `[ ]` | at least one of each |
+| `apply-progress` | tasks recorded complete versus tasks recorded in total | more than none and fewer than all |
+| `review-ledger` | rows still open versus rows closed | at least one row is not in a terminal state (`review-ledger-contract.md` §9 — cited, never restated) |
+
+The other seven types are BINARY — present is `done`, absent is `missing`, and they can never
+be reported `partial`: `explore`, `brainstorm`, `proposal`, `spec`, `design`, `verify-report`,
+`archive-report`. The per-type value sets in §4's schema encode this structurally, so a reader
+cannot invent a partial `design` without editing the schema.
+
+- A reader MUST NOT infer completeness from prose. An artifact whose body hedges — "TODO",
+  "draft", an open question — but carries no countable signal is `done`, not `partial`.
+- A type with no countable signal is NEVER `partial`. A `tasks` artifact written as task
+  headings rather than checkbox lines carries no checkbox signal, so it is `done` once it
+  exists.
+- A type absent from the registry in `skills/_shared/engram-convention.md` MUST NOT appear in
+  the `artifacts` map at all, and therefore can never be reported `partial`.
+- Artifact state and `taskProgress` are separate signals and MUST NOT be conflated. A `tasks`
+  artifact with every box unchecked is `done` AS AN ARTIFACT while `completed` is `0` and
+  `allComplete` is false. `taskProgress` is derived per §4 from the `tasks` and
+  `apply-progress` artifacts together; it is never read off this table.
 
 ## 6. Dependency States
 
-TBD.
+`dependencies` reports one state per phase — `blocked | ready | all_done` — for the nine
+phases of the graph `brainstorm` → `proposal` → { `spec`, `design` } → `tasks` → `apply` →
+`review` → `verify` → `archive`.
+
+- **`blocked`** — at least one upstream artifact is `missing`.
+- **`ready`** — every upstream artifact is satisfied AND this phase's own artifact is `missing`
+  or `partial`.
+- **`all_done`** — every upstream artifact is satisfied AND this phase's own artifact is `done`.
+
+| Phase | `ready` when |
+|-------|--------------|
+| `brainstorm` | always — it has no upstream, so it is never `blocked` |
+| `proposal` | `brainstorm` is `all_done`, or the user supplied the intent directly |
+| `spec` | `proposal` is `all_done` |
+| `design` | `proposal` is `all_done` — parallel with `spec`; neither depends on the other |
+| `tasks` | `spec` AND `design` are both `all_done` |
+| `apply` | `tasks` is `all_done` and `taskProgress.allComplete` is false |
+| `review` | the `apply-progress` artifact exists and `taskProgress.allComplete` is true |
+| `verify` | `review` is `all_done` |
+| `archive` | the `verify-report` is `done` AND `review` is `all_done` (`review-ledger-contract.md` §11) |
+
+`all_done` means that phase's own artifact is `done`, with two exceptions: `apply` is
+`all_done` when `taskProgress.allComplete` is true, and `review` is `all_done` when the ledger
+closes per `review-ledger-contract.md` §11. Anything neither `ready` nor `all_done` is
+`blocked`, and every blocked phase contributes one `blockedReasons[]` entry naming the missing
+upstream artifact type(s) by their registered names. `blockedReasons` carries the explanation;
+`nextRecommended` never does.
+
+`sdd-debug` is NOT a phase of this graph. It can be invoked at any time, it has no upstream and
+no dependents, and it MUST NOT appear in `dependencies`.
 
 ## 7. Artifact Enumeration and Recovery
 
