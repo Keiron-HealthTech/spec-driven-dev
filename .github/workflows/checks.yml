@@ -13,3 +13,11 @@ jobs:
 
       - name: Judge byte-identity drift check
         run: ./scripts/check-judges.sh
+
+  check-commands:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Command roster set-equality check
+        run: ./scripts/check-commands.sh
