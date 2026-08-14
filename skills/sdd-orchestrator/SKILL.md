@@ -79,6 +79,7 @@ When writing/updating artifacts, ALWAYS use `topic_key` for upserts (avoids dupl
 | `/sdd-verify [change-name]` | Validate implementation |
 | `/sdd-archive [change-name]` | Sync specs + archive + branch completion |
 | `/sdd-debug [change-name]` | Debug unexpected failures with root cause protocol |
+| `/sdd-status [change-name]` | Report cycle state, read-only |
 
 ## Command → Skill Mapping
 
@@ -94,6 +95,7 @@ When writing/updating artifacts, ALWAYS use `topic_key` for upserts (avoids dupl
 | `/sdd-verify` | sdd-verify | `skills/sdd-verify/SKILL.md` |
 | `/sdd-archive` | sdd-archive + finishing-a-development-branch | `skills/sdd-archive/SKILL.md` |
 | `/sdd-debug` | sdd-debug | `skills/sdd-debug/SKILL.md` |
+| `/sdd-status` | read-only — no skill; returns the contract §4 projection | — |
 
 ---
 
