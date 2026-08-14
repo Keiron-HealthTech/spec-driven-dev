@@ -35,7 +35,6 @@ TABLE_SETS=(
   "$(table_commands "$ORCHESTRATOR" "## Command → Skill Mapping")"
 )
 
-# B1 — the four consumer tables agree with each other and carry every command file.
 for i in "${!TABLE_NAMES[@]}"; do
   if [ -z "${TABLE_SETS[$i]}" ]; then
     fail "${TABLE_NAMES[$i]}: extraction yielded no commands; the table or its heading moved"
@@ -53,15 +52,20 @@ if [ -z "$command_names" ]; then
   fail "commands/ contains no command files; the roster check would be vacuous"
 fi
 
-# The roster is the union of every source, so an entry missing from ALL the tables — the shape
-# a newly added command file takes — is still reported against each of them.
-roster="$(printf '%s\n%s\n%s\n%s\n%s\n' "${TABLE_SETS[@]}" "$command_names" | grep -E '^/sdd-' | sort -u || true)"
+# B1 — set equality across five sources: the four consumer tables and the directory itself.
+# The roster is their union, so whatever a source lacks is its half of the symmetric difference.
+# Because commands/ is a source and not merely a subset, drift is caught one-sidedly in both
+# directions: a file with no table row, and a table row with no file.
+ROSTER_NAMES=("${TABLE_NAMES[@]}" "commands/")
+ROSTER_SETS=("${TABLE_SETS[@]}" "$command_names")
+
+roster="$(printf '%s\n' "${ROSTER_SETS[@]}" | grep -E '^/sdd-' | sort -u || true)"
 
 drift=""
-for i in "${!TABLE_NAMES[@]}"; do
-  missing="$(comm -23 <(echo "$roster") <(echo "${TABLE_SETS[$i]}") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
+for i in "${!ROSTER_NAMES[@]}"; do
+  missing="$(comm -23 <(echo "$roster") <(echo "${ROSTER_SETS[$i]}") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
   if [ -n "$missing" ]; then
-    drift="${drift:+$drift; }${TABLE_NAMES[$i]} is missing $missing"
+    drift="${drift:+$drift; }${ROSTER_NAMES[$i]} is missing $missing"
   fi
 done
 
@@ -180,4 +184,4 @@ if [ -n "$only_registry" ] || [ -n "$only_contract" ]; then
   fail "artifact type drift: registry-only: ${only_registry:-none}; projection-only: ${only_contract:-none}"
 fi
 
-echo "check-commands: OK — roster frozen at $(echo "$roster" | wc -l | tr -d ' ') across four tables; registry complete"
+echo "check-commands: OK — roster frozen at $(echo "$roster" | wc -l | tr -d ' ') across four tables and commands/; registry complete"
