@@ -14,19 +14,36 @@ scope:     project
 
 ### Artifact Types (exact strings)
 
+These ten types are change-scoped: title and `topic_key` are both `sdd/{change-name}/{artifact-type}`. This table is the single source of truth for artifact enumeration.
+
 | Artifact Type | Produced By | Description |
 |---------------|-------------|-------------|
 | `explore` | sdd-explore | Exploration analysis |
+| `brainstorm` | sdd-orchestrator | Brainstorm summary from discovery loop |
 | `proposal` | sdd-propose | Change proposal |
 | `spec` | sdd-spec | Delta specifications (all domains concatenated) |
 | `design` | sdd-design | Technical design |
 | `tasks` | sdd-tasks | Task breakdown |
 | `apply-progress` | sdd-apply | Implementation progress (one per batch) |
+| `review-ledger` | sdd-review | Review findings ledger — topic `sdd/{change-name}/review-ledger` |
 | `verify-report` | sdd-verify | Verification report |
-| `brainstorm` | sdd-orchestrator | Brainstorm summary from discovery loop |
 | `archive-report` | sdd-archive | Archive closure with lineage |
 
-**Exception**: `sdd-init` uses `sdd-init/{project-name}` as both title and topic_key (it's project-scoped, not change-scoped).
+### Cycle State Cache
+
+| Artifact Type | Produced By | Description |
+|---------------|-------------|-------------|
+| `status` | sdd-orchestrator | Cached cycle-state projection at `sdd/{change-name}/status` |
+
+The cache is written by the orchestrator; `/sdd-status` is read-only and never writes it. It is a cache and never the authority — live enumeration of the ten types above always wins, and a stale or missing cache costs one enumeration pass, never correctness.
+
+### Exceptions to Change-Scoped Naming
+
+| Topic form | Scope | When |
+|------------|-------|------|
+| `sdd-init/{project}` | project-scoped | Project context written by sdd-init |
+| `sdd/specs/{domain}` | domain-scoped | Main specs — one observation per domain, merged at archive |
+| `review/{target-slug}/ledger` | target-scoped | A review with no active change: an ad-hoc target outside the `sdd/{change-name}/` namespace |
 
 ### Example
 
