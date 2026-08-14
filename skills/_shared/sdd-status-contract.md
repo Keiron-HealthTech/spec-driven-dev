@@ -55,7 +55,36 @@ values as a literal list, is drift and fails `scripts/check-envelope.sh`.
 
 ## 3. `next_recommended` Vocabulary (CLOSED)
 
-TBD.
+The vocabulary is CLOSED at thirteen tokens. Every `next_recommended` value anywhere in this
+plugin is one of them; a value outside this table is invalid, not an extension.
+
+| Token | Orchestrator action |
+|-------|---------------------|
+| `propose` / `spec` / `design` / `tasks` / `apply` / `verify` / `archive` | Launch the corresponding sub-agent |
+| `review` | Load `sdd-review` at LEAD level (orchestrator Rule 10 exception (b)) |
+| `remediate` | Re-run the failed phase with corrective feedback; for an apply or verify failure, launch `sdd-debug` |
+| `resolve-blockers` | STOP. Report the blocking reasons; launch no phase |
+| `resolve-review` | STOP. Present the open ledger rows; the user decides (`review-ledger-contract.md` §11) |
+| `select-change` | Ask the user which change. Never guess |
+| `sdd-new` | No active change exists; suggest `/sdd-new {name}` |
+
+**Route by the token, never by the prose.** The consumer reads the token and acts. It MUST NOT
+parse an English sentence to infer intent, and MUST NOT accept a free-form value such as
+`"resume sdd-apply"`: an unrecognised value is an error to report, never a sentence to
+interpret. `executive_summary` explains; only the token routes.
+
+**Citation form.** Outside this contract a concrete value appears ONLY as `` `next_recommended:
+{token}` `` or inside a JSON `"next_recommended": ["{token}"]` array. This is what makes
+membership mechanically checkable: the looser reading — any backticked kebab-case word near a
+mention of `next_recommended` — false-positives on unrelated vocabularies such as `wont-fix`
+and `full-4r`.
+
+`remediate` is load-bearing, not vestigial: it is the gate's second-attempt route and
+`sdd-verify`'s failure route, and it is what dispatches `sdd-debug`. There is deliberately no
+`explore` or `brainstorm` token: discovery is orchestrator-owned (Rule 10(a)), so there is no
+delegate to route back from and the vocabulary correctly starts at `propose`.
+
+Adding a token means editing this table and nothing else. Every consumer cites `§3`.
 
 ## 4. Status Projection
 
