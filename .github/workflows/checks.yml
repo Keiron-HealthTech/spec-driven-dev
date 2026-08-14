@@ -21,3 +21,11 @@ jobs:
 
       - name: Command roster set-equality check
         run: ./scripts/check-commands.sh
+
+  check-envelope:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Envelope, enum, and guard-shape drift check
+        run: ./scripts/check-envelope.sh
