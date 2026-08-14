@@ -38,7 +38,20 @@ This contract applies unchanged in all three artifact store modes — `engram`, 
 
 ## 2. Return Envelope Schema
 
-TBD.
+Every sub-agent returns exactly these six fields, and nothing else is part of the envelope.
+
+| Field | Type | Required | Meaning |
+|-------|------|----------|---------|
+| `status` | enum `done \| partial \| blocked` | yes | `done` = the artifact was produced and its acceptance met; `partial` = §5 only; `blocked` = the phase could not complete |
+| `executive_summary` | string, 1–3 sentences | yes | What the orchestrator shows the user |
+| `detailed_report` | markdown | no | The full trace |
+| `artifacts` | array of `{name, topic_key \| path, observation_id?}` | yes (may be empty) | What was persisted, by reference |
+| `next_recommended` | array of §3 tokens, normally one | yes | Routing. Never prose |
+| `risks` | array of strings | yes (may be empty) | When `status` is `blocked`, carries the blocking reasons |
+
+This section is the ONLY definition site of the envelope and of the `status` enum. Consumers
+cite `§2` by path; a file that enumerates three or more field names, or restates the `status`
+values as a literal list, is drift and fails `scripts/check-envelope.sh`.
 
 ## 3. `next_recommended` Vocabulary (CLOSED)
 
