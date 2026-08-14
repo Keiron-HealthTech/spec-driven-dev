@@ -232,15 +232,96 @@ restates it.
 
 ## 8. Gate Checks
 
-TBD.
+At every phase boundary the artifact just produced is validated against these five checks
+before any dependent phase starts. This is their only definition site; consumers name them and
+cite `§8`.
+
+| # | Check | Definition |
+|---|-------|------------|
+| 1 | Contract conformance | The envelope carries every required §2 field, `status` is a §2 enum member, and every `next_recommended` value is a §3 token |
+| 2 | Artifact existence | Every entry in `artifacts` resolves in the active store by §7 — the declared topic or path is actually readable |
+| 3 | No hallucination | Every file, path, symbol, command and id the phase claims to have used or produced exists. Existence only, never quality |
+| 4 | No drift from inputs | The content does not contradict the inputs the phase declared: proposal from brainstorm, spec and design from proposal, tasks from spec and design, apply from tasks |
+| 5 | Routing coherence | The recommended token is reachable from the current §6 dependency state, and no unaddressed blocking risk remains |
+
+**Dispatch is hybrid, by an explicit per-boundary mapping and never a heuristic.**
+
+| Boundary | Validation |
+|----------|------------|
+| `explore`, `propose`, `spec`, `tasks`, `review`, `verify`, `archive` | inline |
+| `design`, `apply` | a fresh-context sub-agent, dispatched as `spec-driven-dev:phase-validator` |
+
+Discovery is orchestrator-owned and returns no delegate envelope, so it opens no boundary. An
+inline boundary MAY be escalated to the fresh-context validator when a check smells wrong; the
+reverse — downgrading `design` or `apply` to inline — is permitted only as the §9
+`GATE: UNAVAILABLE` fallback, and is recorded when it happens.
+
+Checks 1 and 2 are mechanically decidable in principle. **Checks 3, 4 and 5 are judgments
+applied by an agent, not mechanical predicates**, and MUST NOT be written or reported as though
+a tool decided them. None of the five is enforced by tooling — nothing in this repository can
+run them, and §12 says why.
 
 ## 9. Gate State Machine
 
-TBD.
+```
+  attempt 1 ──envelope──▶ [ GATE — §8 checks 1-5 ]
+                             │                    │
+                        pass │                    │ fail
+                             │                    ▼
+                             │        attempt 2 — SAME phase, SAME inputs,
+                             │        plus corrective feedback
+                             │                    │ envelope
+                             │                    ▼
+                             │        [ GATE — §8 checks 1-5 ]
+                             │            │                  │
+                             │       pass │                  │ fail
+                             ▼            ▼                  ▼
+                   ┌────────────────────────┐      ┌──────────────────────┐
+                   │        ADVANCE         │      │         STOP         │
+                   │ route by the §3 token; │◀─────│   status: blocked    │
+                   │ if a user gate is due, │ user │   blockedReasons[]   │
+                   │ present there (§11.1)  │ over │   no dependent phase │
+                   └────────────────────────┘ ride │   advances           │
+                                                   └──────────────────────┘
+```
+
+- Terminal states: **ADVANCE** and **STOP**. There is no third outcome.
+- Budget: the failed phase is re-run EXACTLY ONCE, with the failed check(s) passed back as
+  corrective feedback. **There is no attempt 3 in this procedure** — no retry with a different
+  prompt, no escalate-then-retry, no quiet extra pass.
+- A second failure is a STOP: report `status: blocked` with one `blockedReasons[]` entry per
+  failed check, and advance no dependent phase. **This is a report, not an approval request.**
+  The gate never asks the user for permission to proceed.
+- A user MAY override a STOP. The override REWRITES the overridden `blockedReasons[]` entry in
+  the exact form `override — user decision (YYYY-MM-DD): {reason}`. Only the user authorises
+  it; the agent never grants an override to itself.
+- `GATE: UNAVAILABLE` is not a failure and does not consume the budget: degrade to inline
+  validation and record `validator unavailable — inline fallback`.
 
 ## 10. Persistence Mapping
 
-TBD.
+Mode resolution is owned by `skills/_shared/persistence-contract.md` and is never restated
+here. This section maps only where the cached projection goes:
+
+| Mode | Destination |
+|------|-------------|
+| `engram` | Upsert topic `sdd/{change-name}/status`, type `architecture`, named per `skills/_shared/engram-convention.md` |
+| `openspec` | `openspec/changes/{change-name}/status.md` |
+| `none` | Inline in the conversation; not persisted |
+
+**The cached projection is a CACHE, never the authority.** Where it disagrees with a live §7
+enumeration the enumeration wins and the cache is re-written from it. A stale or missing cache
+is never an error: it costs one enumeration pass, never correctness. The orchestrator is its
+only writer.
+
+### Read-Only Guarantee for the Projection
+
+Rendering the projection changes nothing, in any mode. In `engram` the renderer calls no write
+tool: never `mem_save`, never `mem_update`, and it does not `persist` or `upsert` the cache.
+In `openspec` it creates and modifies no file, `status.md` included. In `none` it reports
+inline only. It creates no artifact of its own, and a run leaves the artifact store
+byte-identical — two consecutive runs change no observation count and no revision number.
+Refreshing the cache is the orchestrator's act, never the renderer's.
 
 ## 11. Gate Precedence (G1 / G2 / G3)
 
