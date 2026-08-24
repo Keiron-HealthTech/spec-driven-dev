@@ -13,6 +13,13 @@ metadata:
   auto_invoke: "Reviewing an implemented change or diff"
 ---
 
+> **LEAD-LEVEL SKILL** — this skill is the ONE exception to the executor gate that guards
+> the ten phase skills. If you loaded it with the Skill tool you are the ORCHESTRATOR and
+> you are CORRECT to follow it inline: do NOT delegate this file to a sub-agent. Every
+> reviewer must be its own `Task(...)` launch and sub-agents cannot launch sub-agents
+> (orchestrator Rule 10 exception (b)). A sub-agent handed this file should stop and report
+> the mis-dispatch instead of running the review.
+
 ## Execution Level
 
 This skill runs at LEAD level. The orchestrator loads it with the Skill tool and
