@@ -581,6 +581,7 @@ ORCHESTRATOR=skills/sdd-orchestrator/SKILL.md
 VALIDATOR=agents/phase-validator.md
 ARCHIVE_SKILL=skills/sdd-archive/SKILL.md
 CONVENTION=skills/_shared/engram-convention.md
+README=README.md
 GATE_HEADING='## Automatic Mode Gatekeeper'
 CYCLE_HEADING='## Cycle State'
 LEGACY_STATE='## State Tracking'
@@ -805,7 +806,7 @@ fi
 # A24 — the limitation is disclosed where it is claimed, as a first-class numbered section that
 # names the authority this plugin does not have.
 SELF_POLICING='self-policing'
-for f in "$CONTRACT" "$ORCHESTRATOR"; do
+for f in "$CONTRACT" "$ORCHESTRATOR" "$README"; do
   if ! grep -qF "$SELF_POLICING" "$f"; then
     fail "$f does not disclose that the gate is $SELF_POLICING"
   fi
@@ -904,6 +905,115 @@ else
     fi
   fi
 fi
+
+# A27 — the README is the plugin's only user-facing surface, and every count in it is compared
+# against the tree instead of against a literal. A hardcoded expectation would go stale the next
+# time an agent or a command is added, which is the drift that left it advertising eight agents.
+if [ ! -f "$README" ]; then
+  fail "$README is missing; the plugin has no user-facing description to check"
+else
+  # `self-policing` is A24's clause above, so the four remaining literals are checked here.
+  for literal in 'gentle-ai' 'MIT' 'phase-validator'; do
+    if ! grep -qF "$literal" "$README"; then
+      fail "$README does not name \"$literal\"; the reader learns nothing about it from the plugin's front page"
+    fi
+  done
+
+  # Not a fixed string: /sdd-status is a substring of sdd-status-contract.md, so a plain search
+  # here would be answered by any line that merely cites the contract by path.
+  if ! grep -qE '(^|[^A-Za-z0-9_-])/sdd-status' "$README"; then
+    fail "$README does not name /sdd-status; the one command this change adds is undocumented"
+  fi
+
+  agent_files="$(find agents -maxdepth 1 -name '*.md' -exec basename {} .md \; 2>/dev/null | sort -u || true)"
+  agent_file_count="$(printf '%s\n' "$agent_files" | grep -c . || true)"
+  agent_rows="$(
+    heading_body "$README" '## Agents' |
+      grep -oE '^\| `[a-z][a-z0-9-]*`' |
+      grep -oE '`[a-z][a-z0-9-]*`' |
+      tr -d '`' |
+      sort -u || true
+  )"
+
+  if [ "$agent_file_count" -eq 0 ]; then
+    fail "agents/ yielded no agent files; the README's agent roster would be compared against nothing"
+  elif [ -z "$agent_rows" ]; then
+    fail "$README's \"## Agents\" table yielded no rows; the heading or the table moved and the agent roster check would pass vacuously"
+  else
+    undocumented="$(comm -23 <(printf '%s\n' "$agent_files") <(printf '%s\n' "$agent_rows") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
+    phantom="$(comm -13 <(printf '%s\n' "$agent_files") <(printf '%s\n' "$agent_rows") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
+    if [ -n "$undocumented" ] || [ -n "$phantom" ]; then
+      fail "$README's agents table has drifted from agents/: undocumented: ${undocumented:-none}; not on disk: ${phantom:-none}"
+    fi
+  fi
+
+  # The advertised number is a second copy of the same fact, so it is compared with the directory
+  # rather than with the table it sits above.
+  claimed_agents="$(grep -oE 'ships [0-9]+ dedicated agents' "$README" | grep -oE '[0-9]+' | head -1 || true)"
+  if [ -z "$claimed_agents" ]; then
+    fail "$README never states how many dedicated agents it ships; there is no count to compare with agents/"
+  elif [ "$claimed_agents" -ne "$agent_file_count" ]; then
+    fail "$README advertises $claimed_agents dedicated agents; agents/ holds $agent_file_count"
+  fi
+
+  command_files="$(find commands -maxdepth 1 -name '*.md' -exec basename {} .md \; 2>/dev/null | sed 's|^|/|' | sort -u || true)"
+  command_file_count="$(printf '%s\n' "$command_files" | grep -c . || true)"
+  readme_commands="$(
+    heading_body "$README" '## Commands' |
+      grep -oE '^\| `/sdd-[a-z-]+' |
+      grep -oE '/sdd-[a-z-]+' |
+      sort -u || true
+  )"
+
+  if [ "$command_file_count" -eq 0 ]; then
+    fail "commands/ yielded no command files; the README's roster would be compared against nothing"
+  elif [ -z "$readme_commands" ]; then
+    fail "$README's \"## Commands\" table yielded no rows; the roster it is supposed to document is absent or its heading moved"
+  else
+    unlisted="$(comm -23 <(printf '%s\n' "$command_files") <(printf '%s\n' "$readme_commands") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
+    invented="$(comm -13 <(printf '%s\n' "$command_files") <(printf '%s\n' "$readme_commands") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
+    if [ -n "$unlisted" ] || [ -n "$invented" ]; then
+      fail "$README's commands table has drifted from commands/: unlisted: ${unlisted:-none}; not on disk: ${invented:-none}"
+    fi
+  fi
+
+  attribution="$(heading_body "$README" '## Attribution')"
+  if [ -z "$attribution" ]; then
+    fail "$README has no \"## Attribution\" section; the gentle-ai credit has no home"
+  else
+    for credited in 'review' 'status contract' 'gatekeeper'; do
+      if ! printf '%s\n' "$attribution" | grep -qiF "$credited"; then
+        fail "$README's \"## Attribution\" section does not credit gentle-ai for the $credited; this change adapted more than the review system"
+      fi
+    done
+    if ! printf '%s\n' "$attribution" | grep -qiF 'partial'; then
+      fail "$README's \"## Attribution\" section does not say the port is partial; the part of gentle-ai's contract that needs its Go binary is deliberately absent"
+    fi
+  fi
+fi
+
+# A28 — one release, one version. Both manifests carry the number and v1.2.0 shipped with
+# marketplace.json left behind, so the value is asserted in each file rather than compared
+# between them: two files agreeing on the wrong number is still a mis-release.
+PLUGIN_MANIFEST=.claude-plugin/plugin.json
+MARKETPLACE_MANIFEST=.claude-plugin/marketplace.json
+# The only expectation in this script that is not extracted from the tree, because no file can be
+# its own source of truth for the number it is being bumped to. It moves with the next release.
+TARGET_VERSION=1.3.0
+
+for f in "$PLUGIN_MANIFEST" "$MARKETPLACE_MANIFEST"; do
+  if [ ! -f "$f" ]; then
+    fail "$f is missing; the release has no version to check"
+    continue
+  fi
+  declared="$(grep -oE '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$f" | sed -E 's/.*"([^"]*)"$/\1/' | sort -u || true)"
+  declared_count="$(printf '%s\n' "$declared" | grep -c . || true)"
+  if [ "$declared_count" -ne 1 ]; then
+    fail "$f declares $declared_count distinct version fields; exactly one is expected and the release version would be ambiguous"
+  elif [ "$declared" != "$TARGET_VERSION" ]; then
+    fail "$f is at version $declared; this release is $TARGET_VERSION and both manifests move together"
+  fi
+done
 
 report
 
