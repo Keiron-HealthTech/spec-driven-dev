@@ -82,23 +82,14 @@ Do NOT continue after escalation. Wait for human guidance.
 
 ## Return Summary
 
-Return to the orchestrator:
+Return the canonical §2 envelope. Debug-specific bindings:
 
-```json
-{
-  "status": "ok | escalated",
-  "executive_summary": "Bug: {description}. Root cause: {cause}. Fix: {what was done}.",
-  "detailed_report": "(optional) Full investigation trace with evidence.",
-  "artifacts": [
-    {
-      "name": "debug-context",
-      "topic_key": "sdd/{change-name}/debug/{description}"
-    }
-  ],
-  "next_recommended": ["resume sdd-apply"],
-  "risks": ["related areas that might have similar issues"]
-}
-```
+| Field | Debug binding |
+|-------|---------------|
+| `status` | `done` when the root cause is fixed and the reproducing test passes; `blocked` on escalation |
+| `artifacts` | the debug context, topic_key `sdd/{change-name}/debug/{slug}` |
+| `next_recommended` | `next_recommended: apply` when implementation resumes; `next_recommended: remediate` when the failure needs another debug pass; `next_recommended: resolve-blockers` on escalation |
+| `risks` | related areas that might carry the same defect |
 
 ## Superpowers Integration
 
