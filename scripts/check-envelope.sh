@@ -574,6 +574,331 @@ done <<EOF
 $all_skills
 EOF
 
+# The gatekeeper section, the validator agent and the archive sync are checked against the canon
+# they cite: the five check names, the dispatch mapping, the precedence ordering, the gate
+# identities and the main-spec topic form are all extracted, never restated here.
+ORCHESTRATOR=skills/sdd-orchestrator/SKILL.md
+VALIDATOR=agents/phase-validator.md
+ARCHIVE_SKILL=skills/sdd-archive/SKILL.md
+CONVENTION=skills/_shared/engram-convention.md
+GATE_HEADING='## Automatic Mode Gatekeeper'
+CYCLE_HEADING='## Cycle State'
+LEGACY_STATE='## State Tracking'
+
+sec8="$(section "$CONTRACT" 8)"
+sec11="$(section "$CONTRACT" 11)"
+sec12="$(section "$CONTRACT" 12)"
+
+heading_body() { # file, exact "## " heading line — its body up to the next "## "
+  awk -v h="$2" '$0 == h { f = 1; next } f && /^## / { exit } f' "$1"
+}
+
+trim() { printf '%s' "$1" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//'; }
+
+# A statement may name a forbidden path only to forbid it. These are the words that turn a
+# mention into a prohibition; a line naming one of those paths without one of these is a claim.
+NEGATION='never|not |no |none|nothing|cannot|neither|without'
+
+unnegated() { # text, pattern — the first lines stating the pattern without negating it
+  printf '%s\n' "$1" | grep -inE "$2" | grep -viE "$NEGATION" | head -2 | tr '\n' ' ' || true
+}
+
+gate="$(heading_body "$ORCHESTRATOR" "$GATE_HEADING")"
+cycle="$(heading_body "$ORCHESTRATOR" "$CYCLE_HEADING")"
+
+# The gate's vocabulary, read out of §8: the five check names and the per-boundary dispatch
+# mapping. A renamed check or a moved table empties these lists, which the counts below turn
+# into a loud failure instead of a vacuous pass.
+check_names="$(printf '%s\n' "$sec8" | sed -nE 's/^\| [1-5] \| ([^|]*[^|[:space:]])[[:space:]]*\|.*/\1/p' || true)"
+check_name_count="$(printf '%s' "$check_names" | grep -c . || true)"
+
+inline_boundaries="$(
+  printf '%s\n' "$sec8" |
+    awk -F'|' '$3 ~ /inline/ && $2 ~ /`/ { print $2 }' |
+    grep -oE '`[a-z-]+`' | tr -d '`' | sort -u || true
+)"
+delegated_boundaries="$(
+  printf '%s\n' "$sec8" |
+    awk -F'|' '$3 ~ /phase-validator/ { print $2 }' |
+    grep -oE '`[a-z-]+`' | tr -d '`' | sort -u || true
+)"
+inline_count="$(printf '%s' "$inline_boundaries" | grep -c . || true)"
+delegated_count="$(printf '%s' "$delegated_boundaries" | grep -c . || true)"
+
+if [ "$check_name_count" -ne 5 ]; then
+  fail "§8's check table yielded $check_name_count of 5 check names; the gatekeeper's naming check would pass vacuously"
+fi
+
+if [ "$inline_count" -lt 4 ] || [ "$delegated_count" -ne 2 ]; then
+  fail "§8's dispatch table yielded $inline_count inline and $delegated_count delegated boundaries; the hybrid-split check would pass vacuously"
+fi
+
+# A20 — the gatekeeper NAMES the five checks and maps every boundary. Naming is not defining:
+# §8 stays the only definition site, and every name below is read out of it.
+if [ -z "$gate" ]; then
+  fail "$ORCHESTRATOR has no \"$GATE_HEADING\" section; the phase gate has no procedure"
+else
+  while IFS= read -r name; do
+    if [ -z "$name" ]; then
+      continue
+    fi
+    if ! printf '%s\n' "$gate" | grep -qiF "$name"; then
+      fail "the $GATE_HEADING section does not name §8 check \"$name\""
+    fi
+  done <<EOF
+$check_names
+EOF
+
+  for boundary in $inline_boundaries; do
+    if ! printf '%s\n' "$gate" | grep -qF "\`$boundary\`"; then
+      fail "the $GATE_HEADING section does not map the \`$boundary\` boundary that §8 validates inline"
+    fi
+  done
+
+  for boundary in $delegated_boundaries; do
+    if ! printf '%s\n' "$gate" | grep -qF "\`$boundary\`"; then
+      fail "the $GATE_HEADING section does not map the \`$boundary\` boundary that §8 sends to a fresh-context validator"
+    fi
+  done
+
+  if ! printf '%s\n' "$gate" | grep -qF 'spec-driven-dev:phase-validator'; then
+    fail "the $GATE_HEADING section does not dispatch the validator by its namespaced spec-driven-dev:phase-validator name"
+  fi
+
+  if ! printf '%s\n' "$gate" | grep -i 'judgment' | grep -qi 'predicate'; then
+    fail "the $GATE_HEADING section does not label checks 3-5 as judgments applied by an agent rather than mechanical predicates"
+  fi
+
+  if ! printf '%s\n' "$gate" | grep -qiF 'enforced by tooling'; then
+    fail "the $GATE_HEADING section does not state that none of the five checks is enforced by tooling"
+  fi
+
+  claimed="$(unnegated "$gate" 'enforced by tooling')"
+  if [ -n "$claimed" ]; then
+    fail "the $GATE_HEADING section claims tool enforcement for a gate check: $claimed"
+  fi
+
+  # A21 — one re-run, then a report. The budget is absolute and no third path exists.
+  if ! printf '%s\n' "$gate" | grep -qF 'EXACTLY ONCE'; then
+    fail "the $GATE_HEADING section does not bound the re-run at EXACTLY ONCE"
+  fi
+
+  if ! printf '%s\n' "$gate" | grep -qi 'corrective feedback'; then
+    fail "the $GATE_HEADING section does not pass the failed checks back as corrective feedback"
+  fi
+
+  if ! printf '%s\n' "$gate" | grep -qF 'STOP'; then
+    fail "the $GATE_HEADING section does not STOP on a second failure"
+  fi
+
+  if ! printf '%s\n' "$gate" | grep -qF '`status: blocked`'; then
+    fail "the $GATE_HEADING section does not report a second failure as \`status: blocked\`"
+  fi
+
+  if ! printf '%s\n' "$gate" | grep -qF 'blockedReasons[]'; then
+    fail "the $GATE_HEADING section does not name the failed checks in blockedReasons[]"
+  fi
+
+  if ! printf '%s\n' "$gate" | grep -qi 'dependent phase'; then
+    fail "the $GATE_HEADING section does not state that no dependent phase advances after a STOP"
+  fi
+
+  third="$(unnegated "$gate" 'attempt 3|third attempt|third run|retry with|different prompt|escalate.{0,14}retry|try again')"
+  if [ -n "$third" ]; then
+    fail "the $GATE_HEADING section opens a path beyond the second attempt: $third"
+  fi
+
+  if ! printf '%s\n' "$gate" | grep -qiE 'approval|approve|permission'; then
+    fail "the $GATE_HEADING section does not state that the gate never asks the user for approval"
+  fi
+
+  asks="$(unnegated "$gate" 'ask[a-z]* (the user )?(for )?(approval|permission)|request approval|approval request')"
+  if [ -n "$asks" ]; then
+    fail "the $GATE_HEADING section turns a gate failure into an approval request: $asks"
+  fi
+fi
+
+# A22 — the validator is structurally unable to write, persist or delegate, and it is not a
+# reviewer. Review vocabulary may appear only inside the explicit disclaimer that denies it.
+if [ ! -f "$VALIDATOR" ]; then
+  fail "$VALIDATOR is missing; the design and apply boundaries have no fresh-context validator"
+else
+  if ! grep -qxF 'name: phase-validator' "$VALIDATOR"; then
+    fail "$VALIDATOR does not declare \`name: phase-validator\`; the namespaced dispatch would not resolve"
+  fi
+
+  tools_line="$(grep -m1 '^tools:' "$VALIDATOR" || true)"
+  if [ -z "$tools_line" ]; then
+    fail "$VALIDATOR declares no \`tools:\` line; an unrestricted validator can write what it is meant to check"
+  else
+    for t in Edit Write Bash Task mem_save mem_update; do
+      if printf '%s\n' "$tools_line" | grep -qE "(^|[^A-Za-z_])$t([^A-Za-z_]|\$)"; then
+        fail "$VALIDATOR grants the $t tool; the validator must be structurally unable to write, persist or delegate"
+      fi
+    done
+  fi
+
+  if ! grep -qiE '^## .*not adversarial review' "$VALIDATOR"; then
+    fail "$VALIDATOR has no explicit \"NOT adversarial review\" disclaimer section; review vocabulary has nowhere legitimate to sit"
+  fi
+
+  leaked="$(
+    awk '
+      /^## / { inside = (tolower($0) ~ /not adversarial review/) }
+      { line = tolower($0) }
+      !inside && line ~ /lens|refuter|judgment day|4r|blocker|severity/ {
+        printf "%s%d", (n++ ? ", " : ""), FNR
+      }
+      END { if (n) printf "\n" }
+    ' "$VALIDATOR"
+  )"
+  if [ -n "$leaked" ]; then
+    fail "$VALIDATOR carries review vocabulary outside its NOT-adversarial-review disclaimer (line(s) $leaked); it validates artifacts, not diffs"
+  fi
+
+  if grep -qE 'spec-driven-dev:(review|jd)-' "$VALIDATOR"; then
+    fail "$VALIDATOR dispatches a review agent; it opens no review budget and cannot delegate"
+  fi
+fi
+
+# A23 — the three gates are identified with owner and kind in both places, and both carry the
+# same precedence ordering, extracted from §11.
+ordering="$(printf '%s\n' "$sec11" | grep -oE '`[^`]*G3 STOP[^`]*`' | head -1 | tr -d '`' || true)"
+if [ -z "$ordering" ]; then
+  fail "§11 states no precedence ordering containing G3 STOP; the ordering check would pass vacuously"
+fi
+
+gate_rows="$(printf '%s\n' "$sec11" | awk -F'|' '$2 ~ /^ *G[123] *$/ { print $4 "~" $5 }' || true)"
+gate_row_count="$(printf '%s' "$gate_rows" | grep -c . || true)"
+if [ "$gate_row_count" -ne 3 ]; then
+  fail "§11's gate table yielded $gate_row_count of 3 gates; G1, G2 and G3 must each carry a kind and an owner"
+fi
+
+if [ -n "$gate" ]; then
+  for g in G1 G2 G3; do
+    if ! printf '%s\n' "$gate" | grep -qF "$g"; then
+      fail "the $GATE_HEADING section does not identify $g; §11's three gates coexist and are named in both places"
+    fi
+  done
+
+  while IFS= read -r row; do
+    if [ -z "$row" ]; then
+      continue
+    fi
+    kind="$(trim "${row%%~*}")"
+    owner="$(trim "${row##*~}")"
+    for value in "$kind" "$owner"; do
+      if [ -n "$value" ] && ! printf '%s\n' "$gate" | grep -qF "$value"; then
+        fail "the $GATE_HEADING section omits the §11 gate attribute \"$value\"; each gate is documented with its kind and its owner"
+      fi
+    done
+  done <<EOF
+$gate_rows
+EOF
+
+  if [ -n "$ordering" ] && ! printf '%s\n' "$gate" | grep -qF "$ordering"; then
+    fail "the $GATE_HEADING section does not state the precedence order \"$ordering\""
+  fi
+fi
+
+# A24 — the limitation is disclosed where it is claimed, as a first-class numbered section that
+# names the authority this plugin does not have.
+SELF_POLICING='self-policing'
+for f in "$CONTRACT" "$ORCHESTRATOR"; do
+  if ! grep -qF "$SELF_POLICING" "$f"; then
+    fail "$f does not disclose that the gate is $SELF_POLICING"
+  fi
+done
+
+if [ -n "$gate" ] && ! printf '%s\n' "$gate" | grep -qF "$SELF_POLICING"; then
+  fail "the $GATE_HEADING section does not open by admitting the gate is $SELF_POLICING"
+fi
+
+unnumbered="$(
+  awk -v pat="$SELF_POLICING" '
+    /^## / { h = $0 }
+    index($0, pat) && h !~ /^## [0-9]+\. / { printf "%s%d", (n++ ? ", " : ""), FNR }
+    END { if (n) printf "\n" }
+  ' "$CONTRACT"
+)"
+if [ -n "$unnumbered" ]; then
+  fail "$CONTRACT discloses $SELF_POLICING outside a numbered \"## {N}.\" section (line(s) $unnumbered); the limitation is not a footnote"
+fi
+
+if ! printf '%s\n' "$sec12" | grep -qF "$SELF_POLICING"; then
+  fail "$CONTRACT §12 does not carry the $SELF_POLICING disclosure"
+fi
+
+for machinery in 'attempt ledger' 'receipts' 'reviewTransaction' 'allowedEditRoots'; do
+  if ! printf '%s\n' "$sec12" | grep -qF "$machinery"; then
+    fail "$CONTRACT §12 does not name the absent machinery \"$machinery\"; the limits section must say what is not ported"
+  fi
+done
+
+# A25 — cycle state is reconstructed, never recalled, and the prose the orchestrator used to
+# hold in its own context window is gone.
+if [ -z "$cycle" ]; then
+  fail "$ORCHESTRATOR has no \"$CYCLE_HEADING\" section; cycle state has no definition site to cite"
+else
+  if ! printf '%s\n' "$cycle" | grep -qF "$CONTRACT"; then
+    fail "the $CYCLE_HEADING section does not cite $CONTRACT by path"
+  fi
+  if ! printf '%s\n' "$cycle" | grep -qF '/sdd-status'; then
+    fail "the $CYCLE_HEADING section does not name /sdd-status as the way to recover cycle state"
+  fi
+  if ! printf '%s\n' "$cycle" | grep -qiE 'never recall|not a source of state'; then
+    fail "the $CYCLE_HEADING section does not forbid recalling cycle state from context"
+  fi
+fi
+
+if grep -qxF "$LEGACY_STATE" "$ORCHESTRATOR"; then
+  fail "$ORCHESTRATOR still carries its \"$LEGACY_STATE\" section; cycle state is the §4 projection, not prose held in context"
+fi
+
+for bullet in 'Which artifacts exist' 'Which tasks are complete' 'Review: tier, ledger ref' 'Any issues or blockers reported'; do
+  if grep -qF "$bullet" "$ORCHESTRATOR"; then
+    fail "$ORCHESTRATOR still instructs tracking \"$bullet\" in its own context; that state is reconstructed by /sdd-status"
+  fi
+done
+
+# A26 — the archive knows how to merge a delta spec into the main specs in the engram store,
+# with the topic forms read out of the artifact-type registry.
+topic_prefix="$(grep -oE 'sdd/\{change-name\}/\{artifact-type\}' "$CONVENTION" | head -1 | sed 's/{artifact-type}//' || true)"
+main_spec_topic="$(grep -F 'Main specs' "$CONVENTION" | grep -oE '`sdd/[^`]*`' | head -1 | tr -d '`' || true)"
+
+if [ -z "$topic_prefix" ] || [ -z "$main_spec_topic" ]; then
+  fail "$CONVENTION no longer yields the change-scoped topic form or the main-spec topic form; the archive sync check would pass vacuously"
+else
+  step1="$(awk '/^### Step 1:/ { f = 1; next } f && /^### / { exit } f' "$ARCHIVE_SKILL")"
+  if [ -z "$step1" ]; then
+    fail "$ARCHIVE_SKILL has no \"### Step 1:\" section; the spec sync has no home"
+  else
+    if ! printf '%s\n' "$step1" | grep -qF '`engram`'; then
+      fail "$ARCHIVE_SKILL Step 1 has no \`engram\` branch; it syncs specs for filesystem paths only"
+    fi
+    if ! printf '%s\n' "$step1" | grep -qF "${topic_prefix}spec"; then
+      fail "$ARCHIVE_SKILL Step 1 does not name the delta source topic ${topic_prefix}spec"
+    fi
+    if ! printf '%s\n' "$step1" | grep -qF "$main_spec_topic"; then
+      fail "$ARCHIVE_SKILL Step 1 does not name the main-spec destination topic $main_spec_topic"
+    fi
+    for rule in ADDED MODIFIED REMOVED; do
+      if ! printf '%s\n' "$step1" | grep -qF "$rule"; then
+        fail "$ARCHIVE_SKILL Step 1's merge rules omit $rule"
+      fi
+    done
+    if ! printf '%s\n' "$step1" | grep -qi 'one upsert per domain'; then
+      fail "$ARCHIVE_SKILL Step 1 does not require one upsert per domain"
+    fi
+    if ! printf '%s\n' "$step1" | grep -qi 'domain header'; then
+      fail "$ARCHIVE_SKILL Step 1 does not split a multi-domain delta on its domain headers"
+    fi
+    if ! printf '%s\n' "$step1" | grep -qiE 'preserv'; then
+      fail "$ARCHIVE_SKILL Step 1 does not preserve the requirements a delta never mentions"
+    fi
+  fi
+fi
+
 report
 
 echo "check-envelope: OK — canon complete, $token_count tokens extracted, single definition site, $site_count sites cite it, standard guard in $executor_count"
