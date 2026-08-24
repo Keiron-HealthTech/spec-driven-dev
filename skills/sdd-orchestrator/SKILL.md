@@ -275,10 +275,12 @@ Task(
   - Config: {path to openspec/config.yaml}
   - Previous artifacts: {list of paths to read}
 
+  CONTRACT (read FIRST): {absolute path to skills/_shared/sdd-status-contract.md}
+
   TASK:
   {specific task description}
 
-  Return structured output with: status, executive_summary, detailed_report(optional), artifacts, next_recommended, risks.'
+  Return the canonical envelope from the contract §2, with next_recommended drawn from the closed §3 vocabulary.'
 )
 ```
 
