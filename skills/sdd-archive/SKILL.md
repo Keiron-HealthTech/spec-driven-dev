@@ -64,9 +64,14 @@ Then evaluate the gate (canonical rule: contract §11):
 
 ### Step 1: Sync Delta Specs to Main Specs
 
+The delta spec becomes part of the main specs. Where both live depends on the active mode —
+resolution in `skills/_shared/persistence-contract.md`.
+
+#### In `openspec` mode
+
 For each delta spec in `openspec/changes/{change-name}/specs/`:
 
-#### If Main Spec Exists (`openspec/specs/{domain}/spec.md`)
+##### If Main Spec Exists (`openspec/specs/{domain}/spec.md`)
 
 Read the existing main spec and apply the delta:
 
@@ -82,7 +87,7 @@ FOR EACH SECTION in delta spec:
 - Preserve all OTHER requirements that aren't in the delta
 - Maintain proper Markdown formatting and heading hierarchy
 
-#### If Main Spec Does NOT Exist
+##### If Main Spec Does NOT Exist
 
 The delta spec IS a full spec (not a delta). Copy it directly:
 
@@ -91,6 +96,28 @@ The delta spec IS a full spec (not a delta). Copy it directly:
 openspec/changes/{change-name}/specs/{domain}/spec.md
   → openspec/specs/{domain}/spec.md
 ```
+
+#### In `engram` mode
+
+The delta is ONE observation at topic `sdd/{change-name}/spec`, with every domain concatenated
+into it. The main specs are one observation per domain at `sdd/specs/{domain}`. Sync like this:
+
+1. Split the delta on its domain headers. A multi-domain delta produces **one upsert per domain**,
+   never one merged observation.
+2. Retrieve `sdd/specs/{domain}` for each domain the delta touches. If it does not exist, that
+   domain's section IS the full main spec — upsert it as it stands.
+3. If it does exist, merge requirement by requirement, matching requirements by name:
+   - ADDED → append the requirement to the main spec
+   - MODIFIED → replace the requirement the delta names
+   - REMOVED → delete the requirement the delta names
+4. **Preserve every requirement the delta does not mention.** Upsert replaces the observation
+   body wholesale, so a requirement omitted from the merge is a requirement deleted from the
+   spec.
+5. Record any design-over-spec adjudication applied while merging in BOTH the main spec and the
+   archive report. The merge is where an adjudication stops being a note and becomes the source
+   of truth.
+
+Topic forms and naming come from `skills/_shared/engram-convention.md`; this step defines none.
 
 ### Step 2: Move to Archive
 
