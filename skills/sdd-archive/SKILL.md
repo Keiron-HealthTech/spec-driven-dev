@@ -42,7 +42,8 @@ Before any spec sync or archive move, retrieve the change's review ledger
 
 Then evaluate the gate (canonical rule: contract §11):
 
-- **BLOCK** the archive if any BLOCKER or CRITICAL row has a status other than `verified`, `refuted`, or `wont-fix`. `open` rows, un-reverified `fixed` rows, and JD `suspect` rows all block — a `fixed` row without a verifying re-review is NOT closed; the review loop did not converge and the user must decide, never the agent. Return `status: blocked`, list every offending row (id, location, severity, status), and set `next_recommended`: run `/sdd-review {change-name}` for a fix round, or ask the user for an explicit wont-fix decision.
+- **BLOCK** the archive if any BLOCKER or CRITICAL row has a status other than `verified`, `refuted`, or `wont-fix`. `open` rows, un-reverified `fixed` rows, and JD `suspect` rows all block — a `fixed` row without a verifying re-review is NOT closed; the review loop did not converge and the user must decide, never the agent. Return `status: blocked` and list every offending row (id, location, severity, status).
+- On a blocked archive set `next_recommended: resolve-review`; the user chooses a fix round or an explicit wont-fix decision.
 - `wont-fix` closes a row ONLY when its evidence records an explicit user decision in the exact form `wont-fix — user decision (YYYY-MM-DD): {reason}`. A wont-fix row without a recorded user decision counts as open and blocks. NEVER set wont-fix yourself — only the user can authorize it, and the sdd-review coordinator records it.
 - Rows with status `info` never block (severity floor, contract §5).
 - If no ledger exists, WARN that this change was implemented without review and require explicit user confirmation before proceeding (backwards compatibility for pre-review changes).
