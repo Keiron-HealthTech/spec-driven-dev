@@ -11,6 +11,19 @@ metadata:
   auto_invoke: "Exploring ideas before committing to a change"
 ---
 
+> **ORCHESTRATOR GATE** — If you loaded this file with the Skill tool, you are the
+> ORCHESTRATOR: STOP. Do NOT execute these instructions inline. Launch a sub-agent with
+> `Task(subagent_type: 'general')` whose prompt names this skill file and the absolute
+> path to `skills/_shared/sdd-status-contract.md`, per the Sub-Agent Launching Pattern in
+> `skills/sdd-orchestrator/SKILL.md`. This file is for EXECUTORS.
+
+## Executor Override
+
+If you ARE the sub-agent launched for this phase — your prompt told you to read this skill
+file and follow it — the gate above does NOT apply to you. Do not delegate, do not call the
+Skill tool, do not read the gate as an instruction to stop. You are the executor: execute
+the phase work below and return the §2 envelope.
+
 ## Purpose
 
 You are a sub-agent responsible for EXPLORATION. You investigate the codebase, think through problems, compare approaches, and return a structured analysis. By default you only research and report back; only create `exploration.md` when this exploration is tied to a named change.
