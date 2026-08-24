@@ -273,6 +273,213 @@ if ! printf '%s\n' "$sec6" | grep -F 'sdd-debug' | grep -qiE 'not a|outside'; th
   fail "§6 does not state that sdd-debug sits outside the dependency graph"
 fi
 
+# The six field names and the status enum, read out of §2 so nothing below can drift from the
+# canon it guards.
+fields="$(
+  printf '%s\n' "$sec2" |
+    sed -nE 's/^\| `([a-z_]+)` \|.*/\1/p' |
+    sort -u || true
+)"
+field_count="$(printf '%s' "$fields" | grep -c . || true)"
+field_list="$(printf '%s' "$fields" | tr '\n' ' ')"
+
+status_enum="$(
+  printf '%s\n' "$sec2" |
+    grep -F '| `status` |' |
+    sed -E 's/.*enum `([^`]*)`.*/\1/' |
+    tr '|' '\n' |
+    tr -d ' \\' |
+    grep -E '^[a-z]+$' |
+    sort -u || true
+)"
+status_count="$(printf '%s' "$status_enum" | grep -c . || true)"
+
+# Extraction tripwires, in the spirit of A2: a renamed or reshaped §2 table would empty either
+# list and let every membership and restatement check below pass vacuously.
+if [ "$field_count" -ne 6 ]; then
+  fail "§2's field-name extraction yielded $field_count of 6; the schema table moved and the inline-restatement check would pass vacuously"
+fi
+
+if [ "$status_count" -ne 3 ]; then
+  fail "§2's status enum extraction yielded $status_count of 3; the status membership check would pass vacuously"
+fi
+
+member() { # value, newline-separated set
+  printf '%s\n' "$2" | grep -qxF "$1"
+}
+
+# A5 — the envelope-producing sites cite the canon by path. There are TWELVE: the ten executors,
+# the orchestrator's launch template, and the lead-level review skill. The executor set below is
+# ten; the citing set is twelve, and they are deliberately not the same array.
+EXECUTORS="skills/sdd-explore/SKILL.md
+skills/sdd-propose/SKILL.md
+skills/sdd-spec/SKILL.md
+skills/sdd-design/SKILL.md
+skills/sdd-tasks/SKILL.md
+skills/sdd-apply/SKILL.md
+skills/sdd-verify/SKILL.md
+skills/sdd-archive/SKILL.md
+skills/sdd-debug/SKILL.md
+skills/sdd-init/SKILL.md"
+
+CITING_SITES="$EXECUTORS
+skills/sdd-orchestrator/SKILL.md
+skills/sdd-review/SKILL.md"
+
+site_count="$(printf '%s\n' "$CITING_SITES" | grep -c . || true)"
+uncited=""
+while IFS= read -r f; do
+  if [ -z "$f" ]; then
+    continue
+  fi
+  if [ ! -f "$f" ] || ! grep -qF "$CONTRACT" "$f"; then
+    uncited="${uncited}${uncited:+, }$f"
+  fi
+done <<EOF
+$CITING_SITES
+EOF
+
+if [ -n "$uncited" ]; then
+  fail "$site_count envelope-producing sites must cite $CONTRACT by path; missing in: $uncited"
+fi
+
+while IFS= read -r f; do
+  if [ -z "$f" ] || [ ! -f "$f" ]; then
+    continue
+  fi
+  for ref in '§2' '§3'; do
+    if ! grep -qF "$ref" "$f"; then
+      fail "$f does not cite $ref; an executor names both the envelope section and the routing section"
+    fi
+  done
+done <<EOF
+$EXECUTORS
+EOF
+
+LEGACY='Return a structured envelope with:'
+
+while IFS= read -r f; do
+  if [ -z "$f" ] || [ "$f" = "$CONTRACT" ]; then
+    continue
+  fi
+
+  # A4 — no inline restatement of the envelope, in either shape: the legacy bullet verbatim, or
+  # any line naming three or more of the six fields.
+  if grep -qF "$LEGACY" "$f"; then
+    fail "$f restates the envelope inline (\"$LEGACY\"); §2 is its only definition site"
+  fi
+
+  inline="$(
+    awk -v fields="$field_list" -v file="$f" '
+      BEGIN { n = split(fields, F, " +") }
+      {
+        c = 0
+        for (i = 1; i <= n; i++) {
+          if (F[i] != "" && match($0, "(^|[^A-Za-z0-9_./-])" F[i] "([^A-Za-z0-9_-]|$)")) c++
+        }
+        if (c >= 3) {
+          printf "%s:%d enumerates %d envelope field names on one line; cite §2 by path instead\n", file, FNR, c
+          exit
+        }
+      }
+    ' "$f"
+  )"
+  if [ -n "$inline" ]; then
+    fail "$inline"
+  fi
+
+  # A6 — every routing literal is a §3 member and every status literal a §2 member, repo-wide,
+  # with no per-file exemption.
+  tokens="$(
+    {
+      grep -oE '`next_recommended: [a-z][a-z-]*`' "$f" | sed -E 's/^`next_recommended: //; s/`$//' || true
+      grep -oE '"next_recommended" *: *\[[^]]*\]' "$f" |
+        sed -E 's/.*\[//; s/\].*//' |
+        tr ',' '\n' |
+        sed -E 's/^[[:space:]]*"?//; s/"?[[:space:]]*$//' || true
+    } | grep -v '^$' | sort -u || true
+  )"
+  while IFS= read -r t; do
+    if [ -z "$t" ]; then
+      continue
+    fi
+    if ! member "$t" "$vocabulary"; then
+      fail "$f assigns next_recommended the value \"$t\", which is not in §3's closed vocabulary"
+    fi
+  done <<EOF
+$tokens
+EOF
+
+  statuses="$(
+    {
+      grep -oE '"status" *: *"[^"]*"' "$f" | sed -E 's/.*: *"//; s/"$//' | tr '|' '\n' || true
+      grep -oE '`status: [^`]*`' "$f" | sed -E 's/^`status: //; s/`$//' | tr '|' '\n' || true
+    } | sed -E 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -v '^$' | sort -u || true
+  )"
+  while IFS= read -r s; do
+    if [ -z "$s" ]; then
+      continue
+    fi
+    if ! member "$s" "$status_enum"; then
+      fail "$f assigns status the value \"$s\", which is not in §2's enum"
+    fi
+  done <<EOF
+$statuses
+EOF
+
+  # A7 — a line mentioning next_recommended either states its value in §3 citation form or names
+  # no value at all. A bare backticked token beside the mention is drift A6 cannot see, because
+  # A6 only reads values that are already in citation form.
+  stray="$(
+    awk -v fields="$field_list" -v file="$f" '
+      /next_recommended/ {
+        line = $0
+        gsub(/`next_recommended: [a-z][a-z-]*`/, "", line)
+        gsub(/"next_recommended"[[:space:]]*:[[:space:]]*\[[^]]*\]/, "", line)
+        n = split(fields, F, " +")
+        for (i = 1; i <= n; i++) {
+          if (F[i] != "") gsub("`" F[i] "`", "", line)
+        }
+        toks = ""
+        delete seen
+        while (match(line, /`[a-z][a-z-]*`/)) {
+          t = substr(line, RSTART + 1, RLENGTH - 2)
+          if (!(t in seen)) {
+            seen[t] = 1
+            toks = toks (toks == "" ? "" : ", ") t
+          }
+          line = substr(line, RSTART + RLENGTH)
+        }
+        if (toks != "") {
+          printf "%s:%d mentions next_recommended beside the backticked token(s) %s, which are not in §3 citation form\n", file, FNR, toks
+          exit
+        }
+      }
+    ' "$f"
+  )"
+  if [ -n "$stray" ]; then
+    fail "$stray"
+  fi
+done <<EOF
+$scan_files
+EOF
+
+# A6 — the three known offenders are migrated, positively. Membership alone cannot see a value
+# that was deleted rather than corrected.
+if grep -qF 'resume sdd-apply' skills/sdd-debug/SKILL.md; then
+  fail "skills/sdd-debug/SKILL.md still carries the free-text routing value \"resume sdd-apply\""
+fi
+
+if ! grep -qF '`next_recommended: resolve-review`' skills/sdd-archive/SKILL.md; then
+  fail "skills/sdd-archive/SKILL.md's blocked-archive path does not set \`next_recommended: resolve-review\`"
+fi
+
+for token in verify resolve-review; do
+  if ! grep -qF "\`next_recommended: $token\`" skills/sdd-review/SKILL.md; then
+    fail "skills/sdd-review/SKILL.md does not route \`next_recommended: $token\`"
+  fi
+done
+
 report
 
-echo "check-envelope: OK — canon complete, $token_count tokens extracted, single definition site"
+echo "check-envelope: OK — canon complete, $token_count tokens extracted, single definition site, $site_count sites cite it"
