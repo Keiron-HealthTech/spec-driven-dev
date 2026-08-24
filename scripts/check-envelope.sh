@@ -480,6 +480,100 @@ for token in verify resolve-review; do
   fi
 done
 
+# The two guard shapes are told apart by their exact opening line, matched whole-line and
+# fixed-string. A mutated marker is a different guard, which is what keeps the negative
+# assertion below unambiguous.
+STD_MARKER='> **ORCHESTRATOR GATE** — If you loaded this file with the Skill tool, you are the'
+INV_MARKER='> **LEAD-LEVEL SKILL** — this skill is the ONE exception to the executor gate that guards'
+OVERRIDE_HEADING='## Executor Override'
+REVIEW_SKILL=skills/sdd-review/SKILL.md
+USING_SDD=skills/using-sdd/SKILL.md
+SUBAGENT_STOP='<SUBAGENT-STOP>'
+
+executor_count="$(printf '%s\n' "$EXECUTORS" | grep -c . || true)"
+all_skills="$(find skills -mindepth 2 -maxdepth 2 -name 'SKILL.md' | sort)"
+
+# A8 — every executor opens with the standard gate and carries the override that releases the
+# launched sub-agent from it. One without the other leaves a skill nobody may execute.
+no_gate=""
+no_override=""
+while IFS= read -r f; do
+  if [ -z "$f" ]; then
+    continue
+  fi
+  if [ ! -f "$f" ] || ! grep -qxF "$STD_MARKER" "$f"; then
+    no_gate="${no_gate}${no_gate:+, }$f"
+  fi
+  if [ ! -f "$f" ] || ! grep -qxF "$OVERRIDE_HEADING" "$f"; then
+    no_override="${no_override}${no_override:+, }$f"
+  fi
+done <<EOF
+$EXECUTORS
+EOF
+
+if [ -n "$no_gate" ]; then
+  fail "$executor_count executor skills must open with the standard gate line; missing in: $no_gate"
+fi
+
+if [ -n "$no_override" ]; then
+  fail "$executor_count executor skills must carry an \"$OVERRIDE_HEADING\" section; missing in: $no_override"
+fi
+
+# A9 — and nowhere else. Without this a standard guard could enter the lead-level skill under a
+# mutated marker, where only A11's fixed string would ever see it.
+while IFS= read -r f; do
+  if [ -z "$f" ] || member "$f" "$EXECUTORS"; then
+    continue
+  fi
+  if grep -qxF "$STD_MARKER" "$f"; then
+    fail "$f carries the standard executor gate; it belongs in exactly the $executor_count executor skills"
+  fi
+  if grep -qxF "$OVERRIDE_HEADING" "$f"; then
+    fail "$f carries an \"$OVERRIDE_HEADING\" section; it belongs in exactly the $executor_count executor skills"
+  fi
+done <<EOF
+$all_skills
+EOF
+
+# A10 — the lead-level skill carries the inverted guard instead, and cites the rule that makes it
+# the one exception.
+if ! grep -qxF "$INV_MARKER" "$REVIEW_SKILL"; then
+  fail "$REVIEW_SKILL must carry the inverted lead-level guard; its opening line is absent"
+fi
+
+if ! grep -qF 'Rule 10 exception (b)' "$REVIEW_SKILL"; then
+  fail "$REVIEW_SKILL's guard does not cross-reference orchestrator Rule 10 exception (b)"
+fi
+
+# A11 — NEGATIVE, and mandatory. A presence-only sweep over the executors would silently reward
+# the one regression that matters: the lead-level skill acquiring the executor gate. §13's
+# editorial rule keeps the literal out of this file, which is what makes a plain fixed-string
+# search safe here.
+if grep -qF 'ORCHESTRATOR GATE' "$REVIEW_SKILL"; then
+  fail "$REVIEW_SKILL contains the literal ORCHESTRATOR GATE; the lead-level skill must never carry the executor gate (§13 editorial rule)"
+fi
+
+if grep -qxF "$OVERRIDE_HEADING" "$REVIEW_SKILL"; then
+  fail "$REVIEW_SKILL carries an \"$OVERRIDE_HEADING\" section; the lead-level skill is not an executor"
+fi
+
+# A12 — the third shape is left alone. Skip-on-dispatch is a different mechanism for a different
+# purpose, and it stays in the one always-on skill.
+if ! grep -qF "$SUBAGENT_STOP" "$USING_SDD"; then
+  fail "$USING_SDD no longer carries its $SUBAGENT_STOP block"
+fi
+
+while IFS= read -r f; do
+  if [ -z "$f" ] || [ "$f" = "$USING_SDD" ]; then
+    continue
+  fi
+  if grep -qF "$SUBAGENT_STOP" "$f"; then
+    fail "$f adopted $SUBAGENT_STOP; that block belongs to $USING_SDD alone"
+  fi
+done <<EOF
+$all_skills
+EOF
+
 report
 
-echo "check-envelope: OK — canon complete, $token_count tokens extracted, single definition site, $site_count sites cite it"
+echo "check-envelope: OK — canon complete, $token_count tokens extracted, single definition site, $site_count sites cite it, standard guard in $executor_count"
