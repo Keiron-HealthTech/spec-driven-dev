@@ -687,20 +687,18 @@ EOF
     fail "the $GATE_HEADING section does not pass the failed checks back as corrective feedback"
   fi
 
-  if ! printf '%s\n' "$gate" | grep -qF 'STOP'; then
-    fail "the $GATE_HEADING section does not STOP on a second failure"
+  # The STOP outcome is one statement, not three scattered words. Checking the three parts
+  # separately would let the precedence string at the foot of the section satisfy "STOP" on its
+  # own, so they are required together, on one line.
+  if ! printf '%s\n' "$gate" | grep -F 'STOP' | grep -F '`status: blocked`' | grep -qF 'blockedReasons[]'; then
+    fail "the $GATE_HEADING section does not state the STOP outcome as \`status: blocked\` with blockedReasons[] on one line"
   fi
 
-  if ! printf '%s\n' "$gate" | grep -qF '`status: blocked`'; then
-    fail "the $GATE_HEADING section does not report a second failure as \`status: blocked\`"
-  fi
-
-  if ! printf '%s\n' "$gate" | grep -qF 'blockedReasons[]'; then
-    fail "the $GATE_HEADING section does not name the failed checks in blockedReasons[]"
-  fi
-
-  if ! printf '%s\n' "$gate" | grep -qi 'dependent phase'; then
-    fail "the $GATE_HEADING section does not state that no dependent phase advances after a STOP"
+  # And the consequence is stated as a prohibition. "before any dependent phase starts" names
+  # dependent phases without forbidding anything, so a negation is required.
+  halted="$(printf '%s\n' "$gate" | grep -iE 'dependent phase' | grep -icE "$NEGATION" || true)"
+  if [ "$halted" -eq 0 ]; then
+    fail "the $GATE_HEADING section never states that NO dependent phase advances after a STOP"
   fi
 
   third="$(unnegated "$gate" 'attempt 3|third attempt|third run|retry with|different prompt|escalate.{0,14}retry|try again')"
@@ -775,9 +773,12 @@ if [ "$gate_row_count" -ne 3 ]; then
 fi
 
 if [ -n "$gate" ]; then
+  # Each gate needs its own row. A bare mention would be satisfied by the section's closing
+  # sentence, and G1 and G2 share a kind and an owner, so a deleted G1 row would otherwise leave
+  # every clause here green.
   for g in G1 G2 G3; do
-    if ! printf '%s\n' "$gate" | grep -qF "$g"; then
-      fail "the $GATE_HEADING section does not identify $g; §11's three gates coexist and are named in both places"
+    if ! printf '%s\n' "$gate" | grep -qE "^\| $g \|"; then
+      fail "the $GATE_HEADING section has no $g row; §11's three gates are each identified with a kind and an owner in both places"
     fi
   done
 
@@ -843,7 +844,9 @@ else
   if ! printf '%s\n' "$cycle" | grep -qF "$CONTRACT"; then
     fail "the $CYCLE_HEADING section does not cite $CONTRACT by path"
   fi
-  if ! printf '%s\n' "$cycle" | grep -qF '/sdd-status'; then
+  # Not a fixed string: /sdd-status is a substring of the contract's own file name, so a plain
+  # search here is answered by the path citation on the line above.
+  if ! printf '%s\n' "$cycle" | grep -qE '(^|[^A-Za-z0-9_-])/sdd-status'; then
     fail "the $CYCLE_HEADING section does not name /sdd-status as the way to recover cycle state"
   fi
   if ! printf '%s\n' "$cycle" | grep -qiE 'never recall|not a source of state'; then
@@ -876,6 +879,9 @@ else
     if ! printf '%s\n' "$step1" | grep -qF '`engram`'; then
       fail "$ARCHIVE_SKILL Step 1 has no \`engram\` branch; it syncs specs for filesystem paths only"
     fi
+    # Every clause below reads the engram branch alone. Scanning the whole step would let the
+    # filesystem branch's own merge rules answer for rules the engram branch never states.
+    step1="$(printf '%s\n' "$step1" | awk '/^#### / { f = ($0 ~ /`engram`/) } f')"
     if ! printf '%s\n' "$step1" | grep -qF "${topic_prefix}spec"; then
       fail "$ARCHIVE_SKILL Step 1 does not name the delta source topic ${topic_prefix}spec"
     fi
