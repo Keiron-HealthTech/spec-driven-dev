@@ -256,4 +256,4 @@ See `skills/_shared/tdd-protocol.md` for the canonical reference.
 - Apply any `rules.apply` from `openspec/config.yaml`
 - If TDD mode is detected (Step 2), ALWAYS follow the RED → GREEN → REFACTOR cycle — never skip RED (writing the failing test first)
 - When running tests during TDD, run ONLY the relevant test file/suite, not the entire test suite (for speed)
-- Return a structured envelope with: `status`, `executive_summary`, `detailed_report` (optional), `artifacts`, `next_recommended`, and `risks`
+- Return the canonical envelope defined in `skills/_shared/sdd-status-contract.md` §2; `status` values come from §2 and every `next_recommended` value from the CLOSED §3 vocabulary — never invent a field, a status value, or a routing token

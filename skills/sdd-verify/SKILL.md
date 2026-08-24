@@ -294,4 +294,4 @@ Report their output in the verification report.
 - DO NOT fix any issues — only report them. The orchestrator decides what to do.
 - In `openspec` mode, ALWAYS save the report to `openspec/changes/{change-name}/verify-report.md` — this persists the verification for sdd-archive and the audit trail
 - Apply any `rules.verify` from `openspec/config.yaml`
-- Return a structured envelope with: `status`, `executive_summary`, `detailed_report` (optional), `artifacts`, `next_recommended`, and `risks`
+- Return the canonical envelope defined in `skills/_shared/sdd-status-contract.md` §2; `status` values come from §2 and every `next_recommended` value from the CLOSED §3 vocabulary — never invent a field, a status value, or a routing token

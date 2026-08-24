@@ -149,4 +149,4 @@ Your job is ONLY the archive (spec sync + folder move). Branch completion is han
 - The archive is an AUDIT TRAIL — never delete or modify archived changes
 - If `openspec/changes/archive/` doesn't exist, create it
 - Apply any `rules.archive` from `openspec/config.yaml`
-- Return a structured envelope with: `status`, `executive_summary`, `detailed_report` (optional), `artifacts`, `next_recommended`, and `risks`
+- Return the canonical envelope defined in `skills/_shared/sdd-status-contract.md` §2; `status` values come from §2 and every `next_recommended` value from the CLOSED §3 vocabulary — never invent a field, a status value, or a routing token

@@ -122,4 +122,4 @@ If `superpowers:systematic-debugging` is available in the session context, also 
 - NEVER change multiple things at once
 - If 3+ fix attempts fail: STOP and escalate to orchestrator
 - Follow any relevant coding skills for the project stack
-- Return a structured envelope with: `status`, `executive_summary`, `detailed_report` (optional), `artifacts`, `next_recommended`, and `risks`
+- Return the canonical envelope defined in `skills/_shared/sdd-status-contract.md` §2; `status` values come from §2 and every `next_recommended` value from the CLOSED §3 vocabulary — never invent a field, a status value, or a routing token

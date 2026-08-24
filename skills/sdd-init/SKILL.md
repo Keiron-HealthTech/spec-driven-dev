@@ -150,4 +150,4 @@ Ready for /sdd-explore <topic> or /sdd-new <change-name>.
 - ALWAYS detect the real tech stack, don't guess
 - If the project already has an `openspec/` directory, report what exists and ask the orchestrator if it should be updated
 - Keep config.yaml context CONCISE - no more than 10 lines
-- Return a structured envelope with: `status`, `executive_summary`, `detailed_report` (optional), `artifacts`, `next_recommended`, and `risks`
+- Return the canonical envelope defined in `skills/_shared/sdd-status-contract.md` §2; `status` values come from §2 and every `next_recommended` value from the CLOSED §3 vocabulary — never invent a field, a status value, or a routing token

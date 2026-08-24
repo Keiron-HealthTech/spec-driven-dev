@@ -155,7 +155,7 @@ Ready for design (sdd-design). If design already exists, ready for tasks (sdd-ta
 - Keep scenarios TESTABLE — someone should be able to write an automated test from each one
 - DO NOT include implementation details in specs — specs describe WHAT, not HOW
 - Apply any `rules.specs` from `openspec/config.yaml`
-- Return a structured envelope with: `status`, `executive_summary`, `detailed_report` (optional), `artifacts`, `next_recommended`, and `risks`
+- Return the canonical envelope defined in `skills/_shared/sdd-status-contract.md` §2; `status` values come from §2 and every `next_recommended` value from the CLOSED §3 vocabulary — never invent a field, a status value, or a routing token
 
 ## RFC 2119 Keywords Quick Reference
 
