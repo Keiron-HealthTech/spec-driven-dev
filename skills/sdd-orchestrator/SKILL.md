@@ -258,6 +258,15 @@ These rules define what the ORCHESTRATOR (lead/coordinator) does. Sub-agents are
 
 **Sub-agents have FULL access** — they read source code, write code, run commands, and follow the user's coding skills (TDD workflows, framework conventions, testing patterns, etc.).
 
+## Contract Resolution
+
+The canonical status contract is `skills/_shared/sdd-status-contract.md`,
+located relative to THIS skill file: `{directory of this SKILL.md}/../_shared/sdd-status-contract.md`.
+Resolve it to an ABSOLUTE path once, at the start of the cycle, and pass that
+absolute path in every delegate prompt. Never pass a project-relative path:
+sub-agents run with the user's project as cwd and cannot locate the plugin
+themselves.
+
 ## Sub-Agent Launching Pattern
 
 When launching a sub-agent via Task tool:
