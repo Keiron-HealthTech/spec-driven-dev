@@ -726,15 +726,53 @@ else
     fail "$VALIDATOR does not declare \`name: phase-validator\`; the namespaced dispatch would not resolve"
   fi
 
-  tools_line="$(grep -m1 '^tools:' "$VALIDATOR" || true)"
-  if [ -z "$tools_line" ]; then
+  # The whole declaration, not its first line: an inline comma list and a YAML block sequence
+  # are both read, and the MCP namespace prefix is stripped before the verb test, so
+  # `mcp__engram__mem_save` is a write grant while `mcp__engram__mem_search` is not.
+  if ! grep -qE '^tools:' "$VALIDATOR"; then
     fail "$VALIDATOR declares no \`tools:\` line; an unrestricted validator can write what it is meant to check"
   else
-    for t in Edit Write Bash Task mem_save mem_update; do
-      if printf '%s\n' "$tools_line" | grep -qE "(^|[^A-Za-z_])$t([^A-Za-z_]|\$)"; then
-        fail "$VALIDATOR grants the $t tool; the validator must be structurally unable to write, persist or delegate"
+    granted="$(
+      awk '
+        !seen && /^tools:/ {
+          seen = 1
+          value = $0
+          sub(/^tools:[ \t]*/, "", value)
+          if (value != "") { print value; exit }
+          block = 1
+          next
+        }
+        block && /^[ \t]*-[ \t]+[^ \t]/ { sub(/^[ \t]*-[ \t]+/, ""); print; next }
+        block { exit }
+      ' "$VALIDATOR" |
+        tr -d "\"'[]" |
+        tr ',' '\n' |
+        sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' |
+        grep -v '^$' || true
+    )"
+
+    if [ -z "$granted" ]; then
+      fail "$VALIDATOR declares an empty \`tools:\` value; the write boundary would be scanned vacuously"
+    fi
+
+    while IFS= read -r tool; do
+      if [ -z "$tool" ]; then
+        continue
       fi
-    done
+      if ! printf '%s\n' "$tool" | grep -qE '^[A-Za-z][A-Za-z0-9_.:-]*$'; then
+        fail "$VALIDATOR declares the unparseable \`tools:\` entry \"$tool\"; the write boundary would be scanned vacuously"
+        continue
+      fi
+      for t in Edit Write Bash Task mem_save mem_update; do
+        case "${tool##*__}" in
+          "$t"*)
+            fail "$VALIDATOR grants the $t tool as \"$tool\"; the validator must be structurally unable to write, persist or delegate"
+            ;;
+        esac
+      done
+    done <<EOF
+$granted
+EOF
   fi
 
   if ! grep -qiE '^## .*not adversarial review' "$VALIDATOR"; then
