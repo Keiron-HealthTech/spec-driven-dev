@@ -11,7 +11,7 @@ values. Every enum and every number of the status system lives ONLY in this file
 |------|-------|---------------|
 | Producer | every phase sub-agent | Returns the §2 envelope; writes no projection |
 | Renderer | `/sdd-status` | Builds the §4 projection by §7 enumeration; read-only in every mode |
-| Router | `sdd-orchestrator` | Consumes the envelope and the projection; the only writer of the §10 cache |
+| Router | `sdd-orchestrator` | Consumes the envelope and the projection; the only writer of the §10 cache and of the §9 gate-stop record |
 | Validator | the phase validator dispatched at a §8 boundary | Reads artifacts to apply the gate checks; writes nothing |
 
 ### Contract Resolution
@@ -145,7 +145,7 @@ the same token.
 |-------|-----------|-------|
 | 1 | No change selected and at least one change exists | `select-change` |
 | 2 | No change exists, or the selected change has zero artifacts | `sdd-new` |
-| 3 | A gatekeeper STOP is recorded for the change | `resolve-blockers` |
+| 3 | An unresolved gatekeeper STOP is recorded for the change (§9 writes it, §7 enumerates it) | `resolve-blockers` |
 | 4 | The review ledger has a row blocking archive (`review-ledger-contract.md` §11) | `resolve-review` |
 | 5 | A `verify-report` exists and records non-compliance | `remediate` |
 | 6 | Otherwise: the first phase in DAG order whose dependency state is `ready` | that phase's token |
@@ -230,6 +230,13 @@ restates it.
 - **`none`** — derived from the session's returned envelopes only, and labelled
   `artifactStore: none — session-scoped, not durable`.
 
+The `gate-stop` record of `engram-convention.md` is enumerated alongside the registered types
+and never inside the `artifacts` map: in `engram` probe `sdd/{change-name}/gate-stop`; in
+`openspec` the file is `openspec/changes/{change-name}/gate-stop.md`. An unresolved record
+there is what lets §4's derivation row 3 fire from a cold read, once the session that hit the
+STOP is gone. In `none` there is nothing to probe and a STOP does not outlive the session,
+which is the same limit that makes that mode session-scoped rather than durable.
+
 ## 8. Gate Checks
 
 At every phase boundary the artifact just produced is validated against these five checks
@@ -289,9 +296,17 @@ run them, and §12 says why.
 - Budget: the failed phase is re-run EXACTLY ONCE, with the failed check(s) passed back as
   corrective feedback. **There is no attempt 3 in this procedure** — no retry with a different
   prompt, no escalate-then-retry, no quiet extra pass.
-- A second failure is a STOP: report `status: blocked` with one `blockedReasons[]` entry per
-  failed check, and advance no dependent phase. **This is a report, not an approval request.**
-  The gate never asks the user for permission to proceed.
+- A second failure is a STOP: report `status: blocked`, and advance no dependent phase.
+  Each `blockedReasons[]` entry names one failed check and the registered artifact type of the
+  phase that STOPped — the entry shape §4 requires. **This is a report, not an approval
+  request.** The gate never asks the user for permission to proceed.
+- **A STOP is recorded, not only reported.** The orchestrator writes the change's `gate-stop`
+  record (`engram-convention.md`; destinations in §7) carrying the phase, the failed checks and
+  those entries. The record survives a compaction, a `/clear` and a new session, so a cold read
+  still routes to `resolve-blockers` instead of reading the phase as done and handing an ungated
+  artifact to the phase downstream. It is cleared when that phase later passes the gate, and
+  rewritten when a user override is recorded in the form below. While it is present and
+  unresolved, no dependent phase advances.
 - A user MAY override a STOP. The override REWRITES the overridden `blockedReasons[]` entry in
   the exact form `override — user decision (YYYY-MM-DD): {reason}`. Only the user authorises
   it; the agent never grants an override to itself.

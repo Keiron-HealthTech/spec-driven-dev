@@ -647,7 +647,9 @@ GATE_HEADING='## Automatic Mode Gatekeeper'
 CYCLE_HEADING='## Cycle State'
 LEGACY_STATE='## State Tracking'
 
+sec7="$(section "$CONTRACT" 7)"
 sec8="$(section "$CONTRACT" 8)"
+sec9="$(section "$CONTRACT" 9)"
 sec11="$(section "$CONTRACT" 11)"
 sec12="$(section "$CONTRACT" 12)"
 
@@ -935,6 +937,65 @@ for machinery in 'attempt ledger' 'receipts' 'reviewTransaction' 'allowedEditRoo
     fail "$CONTRACT §12 does not name the absent machinery \"$machinery\"; the limits section must say what is not ported"
   fi
 done
+
+# A29 — the derivation row keyed on a gate STOP has somewhere to read that STOP from. A row
+# whose condition nothing can ever satisfy is a dead row in a table §4 calls exhaustive, and the
+# phase whose artifact never cleared the gate would then read back as done.
+stop_record="$(awk '/^### Gate STOP Record/ { f = 1; next } f && /^#/ { exit } f' "$CONVENTION")"
+stop_topic="$(printf '%s\n' "$stop_record" | grep -oE 'sdd/\{change-name\}/[a-z-]+' | head -1 || true)"
+stop_type="${stop_topic##*/}"
+
+if [ -z "$stop_topic" ]; then
+  fail "$CONVENTION documents no gate STOP record topic; §4's derivation row keyed on a recorded STOP would have no recording site and every clause below would pass vacuously"
+else
+  # The row itself, found by its condition rather than by its position, so a renumbered table is
+  # still checked and a deleted row is still missed.
+  stop_row="$(printf '%s\n' "$derivation" | awk -F'|' '/^\|[[:space:]]*[0-9]+[[:space:]]*\|/ && $3 ~ /STOP/ { print; exit }')"
+  if [ -z "$stop_row" ]; then
+    fail "§4's derivation table has no row conditioned on a gate STOP; the gate's STOP outcome would route nowhere"
+  elif ! printf '%s\n' "$stop_row" | grep -qi 'unresolved'; then
+    fail "§4's derivation row for a gate STOP does not key on an UNRESOLVED record; a cleared STOP would keep routing to it forever"
+  fi
+
+  # The record is enumerated, in both durable modes, by the topic form the convention defines.
+  if ! printf '%s\n' "$sec7" | grep -qF "$stop_topic"; then
+    fail "§7 does not enumerate $stop_topic; a STOP recorded there would never be read back and the derivation row would stay dead"
+  fi
+
+  if ! printf '%s\n' "$sec7" | grep -qF "${stop_type}.md"; then
+    fail "§7 names no ${stop_type}.md path for the \`openspec\` mode; the record would be enumerable in one durable store only"
+  fi
+
+  # And it is written, durably, with a way out. A record nothing clears blocks the change forever.
+  if ! printf '%s\n' "$sec9" | grep -F "$stop_type" | grep -qi 'record'; then
+    fail "§9 does not record the STOP in the $stop_type record; a reported STOP dies with the session that reported it"
+  fi
+
+  if ! printf '%s\n' "$sec9" | grep -qi 'survives a compaction'; then
+    fail "§9 does not state that the STOP record survives a compaction; durability is the whole point of recording it"
+  fi
+
+  if ! printf '%s\n' "$sec9" | grep -qiE 'cleared|clears'; then
+    fail "§9 states no way to clear a recorded STOP; the change would route to the blocked outcome permanently"
+  fi
+
+  # The blockedReasons shape §4 constrains and the shape §9 produces are the same shape, stated
+  # on one line so the two halves cannot drift apart across a paragraph.
+  if ! printf '%s\n' "$sec9" | grep -F 'blockedReasons' | grep -qi 'artifact type'; then
+    fail "§9's STOP entries do not name a registered artifact type; §4 requires that of every blockedReasons entry, so the STOP's own entries would violate it"
+  fi
+
+  # Registered types belong in the §4 map; this record is deliberately not one of them, and §5
+  # forbids anything else appearing there.
+  if printf '%s\n' "$sec4" | sed -n '/^artifacts:$/,/^artifactRefs:$/p' | grep -qF "$stop_type"; then
+    fail "§4's artifacts map carries $stop_type; the STOP record is not a registered artifact type and §5 forbids it in the map"
+  fi
+
+  # The actor that produces a STOP is the actor that has to write it down.
+  if [ -n "$gate" ] && ! printf '%s\n' "$gate" | grep -qF "$stop_type"; then
+    fail "the $GATE_HEADING section never writes the $stop_type record; the canon would define a recording site nothing records to"
+  fi
+fi
 
 # A25 — cycle state is reconstructed, never recalled, and the prose the orchestrator used to
 # hold in its own context window is gone.

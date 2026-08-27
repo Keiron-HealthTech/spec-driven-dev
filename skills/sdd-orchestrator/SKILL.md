@@ -338,7 +338,9 @@ At every phase boundary, before any dependent phase starts:
    failed check, and advance no dependent phase. It is a report and never an approval request:
    the gate does not ask the user for permission to proceed, and there is no attempt 3 — no
    retry with a different prompt, no escalate-then-retry, no quiet extra pass. Only the user
-   may override, in the §9 form.
+   may override, in the §9 form. Write the STOP to the change's `gate-stop` record (§9, topic
+   form in the artifact convention) so it outlives this session and a compacted you still sees
+   it; clear that record when the same phase later passes the gate.
 7. `GATE: UNAVAILABLE` → degrade to inline validation and record `validator unavailable —
    inline fallback`. Exactly one evaluation per boundary (§11 rule 4): the gate never fires
    inside the review loop and never opens review budget (§11 rule 3).

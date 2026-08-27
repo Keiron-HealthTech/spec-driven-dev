@@ -37,6 +37,21 @@ These ten types are change-scoped: title and `topic_key` are both `sdd/{change-n
 
 The cache is written by the orchestrator; `/sdd-status` is read-only and never writes it. It is a cache and never the authority — live enumeration of the ten types above always wins, and a stale or missing cache costs one enumeration pass, never correctness.
 
+### Gate STOP Record
+
+| Artifact Type | Produced By | Description |
+|---------------|-------------|-------------|
+| `gate-stop` | sdd-orchestrator | Unresolved phase-gate STOP at `sdd/{change-name}/gate-stop` |
+
+A STOP has to outlive the session that produced it. Without a durable record, a compacted
+orchestrator re-reads the cycle, sees the phase's own artifact present, and feeds an artifact
+that never cleared the gate to the phase downstream. So the STOP is written here, one per
+change, upserted, and read back by live enumeration like any other topic.
+
+This record is NOT one of the ten registered types above and MUST NOT appear in the
+`artifacts` map of the cycle-state projection. It is cleared when the same phase later passes
+the gate, and rewritten when the user overrides the STOP.
+
 ### Exceptions to Change-Scoped Naming
 
 | Topic form | Scope | When |
