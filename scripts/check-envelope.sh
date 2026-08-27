@@ -167,12 +167,73 @@ if ! printf '%s\n' "$sec4" | grep -F '`completed`' | grep -qF '`apply-progress`'
   fail "§4 does not derive taskProgress \`completed\` from the \`apply-progress\` artifact"
 fi
 
-# A16 — the routing decision is a table with an order, not a judgment call.
-derivation="$(printf '%s\n' "$sec4" | awk '/^### / { f = ($0 ~ /derivation/) } f')"
+# A16 — the routing decision is a table with an order, not a judgment call. The subsection
+# heading is dropped from the extraction deliberately: it carries the words "derivation",
+# "ORDERED" and "first match wins" itself, so an extraction that keeps it is answered by the
+# heading alone and every row underneath could be deleted with each clause below still green.
+derivation="$(printf '%s\n' "$sec4" | awk '/^### / { f = ($0 ~ /derivation/); next } f')"
 if [ -z "$derivation" ]; then
   fail "§4 has no nextRecommended derivation subsection"
 else
-  if ! printf '%s\n' "$derivation" | grep -qiE 'first match|first-match'; then
+  # The rows are the derivation. They are read by the order number in their first cell, which is
+  # also what makes their sequence checkable rather than merely asserted in prose.
+  order_numbers="$(printf '%s\n' "$derivation" | sed -nE 's/^\|[[:space:]]*([0-9]+)[[:space:]]*\|.*/\1/p' || true)"
+  row_count="$(printf '%s\n' "$order_numbers" | grep -c . || true)"
+
+  if [ "$row_count" -ne 7 ]; then
+    fail "§4's derivation table yielded $row_count numbered rows of 7; §4 declares the ordered rows exhaustive and a heading is not a row"
+  fi
+
+  if [ "$row_count" -gt 0 ] && [ "$order_numbers" != "$(seq 1 "$row_count")" ]; then
+    fail "§4's derivation rows are numbered $(printf '%s' "$order_numbers" | tr '\n' ' ' | sed 's/ *$//') instead of 1..$row_count ascending; first-match evaluation has no order to follow"
+  fi
+
+  hollow="$(
+    printf '%s\n' "$derivation" |
+      awk -F'|' '
+        /^\|[[:space:]]*[0-9]+[[:space:]]*\|/ {
+          cond = $3
+          outcome = $(NF - 1)
+          gsub(/[[:space:]]/, "", cond)
+          gsub(/[[:space:]]/, "", outcome)
+          if (cond == "" || outcome == "") { printf "%s%d", (n++ ? ", " : ""), $2 + 0 }
+        }
+        END { if (n) printf "\n" }
+      '
+  )"
+  if [ -n "$hollow" ]; then
+    fail "§4's derivation row(s) $hollow state no condition or no outcome; a row that decides nothing cannot be first-match evaluated"
+  fi
+
+  # Every outcome the rows name is a §3 member, read out of §3 instead of listed here. Only the
+  # outcome cell is scanned: the condition cells legitimately name artifact types and other files.
+  outcomes="$(
+    printf '%s\n' "$derivation" |
+      awk -F'|' '/^\|[[:space:]]*[0-9]+[[:space:]]*\|/ { print $(NF - 1) }' |
+      grep -oE '`[a-z][a-z-]*`' |
+      tr -d '`' |
+      sort -u || true
+  )"
+  outcome_count="$(printf '%s' "$outcomes" | grep -c . || true)"
+
+  if [ "$outcome_count" -lt 5 ]; then
+    fail "§4's derivation rows yielded $outcome_count outcome tokens (fewer than 5); the outcome cells moved and the membership check below would pass vacuously"
+  fi
+
+  while IFS= read -r outcome; do
+    if [ -z "$outcome" ]; then
+      continue
+    fi
+    if ! printf '%s\n' "$vocabulary" | grep -qxF "$outcome"; then
+      fail "§4's derivation table routes to \"$outcome\", which is not in §3's closed vocabulary"
+    fi
+  done <<EOF
+$outcomes
+EOF
+
+  # The prose rules, now that the heading can no longer answer for them. §4's body states the
+  # first-match rule as "STOP at the first whose condition holds", which is the same rule.
+  if ! printf '%s\n' "$derivation" | grep -qiE 'first match|first-match|first whose condition|stop at the first'; then
     fail "§4's derivation states no first-match rule"
   fi
   if ! printf '%s\n' "$derivation" | grep -qiE 'in the order|ordered|evaluation order'; then
