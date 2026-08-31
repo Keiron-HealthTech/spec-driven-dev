@@ -103,17 +103,32 @@ The delta is ONE observation at topic `sdd/{change-name}/spec`, with every domai
 into it. The main specs are one observation per domain at `sdd/specs/{domain}`. Sync like this:
 
 1. Split the delta on its domain headers. A multi-domain delta produces **one upsert per domain**,
-   never one merged observation.
-2. Retrieve `sdd/specs/{domain}` for each domain the delta touches. If it does not exist, that
+   never one merged observation. Delta material sitting **outside any domain section** — a
+   legend, a shared preamble, a mode note, anything above the first domain header — belongs to
+   EVERY domain the split produces. Carry it into each upsert. Leaving it in the first domain
+   only, or dropping it because the split did not name it, strands every scenario that keys on
+   it.
+2. **Snapshot before you write.** For each `sdd/specs/{domain}` the merge will touch, save its
+   retrieved body unchanged at `sdd/specs/{domain}/pre-merge-{YYYY-MM-DD}` and **record every
+   snapshot's observation id in the archive report — before the first upsert.** Upsert replaces
+   the body wholesale and engram has no revert, so this snapshot is the only way back. A
+   snapshot taken after the write is a copy of the damage; an id nobody recorded is not a
+   recovery path. The `openspec` branch needs none of this: git is already its snapshot.
+3. Retrieve `sdd/specs/{domain}` for each domain the delta touches. If it does not exist, that
    domain's section IS the full main spec — upsert it as it stands.
-3. If it does exist, merge requirement by requirement, matching requirements by name:
+4. If it does exist, merge requirement by requirement, matching requirements by name:
    - ADDED → append the requirement to the main spec
    - MODIFIED → replace the requirement the delta names
    - REMOVED → delete the requirement the delta names
-4. **Preserve every requirement the delta does not mention.** Upsert replaces the observation
+5. **Preserve every requirement the delta does not mention.** Upsert replaces the observation
    body wholesale, so a requirement omitted from the merge is a requirement deleted from the
    spec.
-5. Record any design-over-spec adjudication applied while merging in BOTH the main spec and the
+6. **Preserve everything in the main spec that is not a requirement.** A main spec's header can
+   carry adjudications, a decision record, a pass set — material no delta mentions and the
+   requirement-by-requirement walk in step 4 never visits, so matching on `### Requirement:`
+   alone silently deletes it. Carry the header, any preamble and any decision record forward
+   verbatim unless the delta explicitly replaces them.
+7. Record any design-over-spec adjudication applied while merging in BOTH the main spec and the
    archive report. The merge is where an adjudication stops being a note and becomes the source
    of truth.
 
