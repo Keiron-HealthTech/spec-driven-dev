@@ -1042,8 +1042,12 @@ else
     fi
 
     # The prohibition cites its definition site instead of becoming a second definition of it.
-    if ! printf '%s\n' "$gate" | grep -F "$routing_rule" | grep -qF '§3'; then
-      fail "$ORCHESTRATOR states the routing rule without citing §3 on the same line; a reader cannot reach the closed vocabulary the rule is about"
+    # The citation is required AFTER the rule sentence, not merely somewhere on its line: the
+    # line already opens with "route by the §3 token", so a whole-line grep for §3 would be
+    # answered by text that predates the rule and could never fail — the A16 defect exactly.
+    rule_line="$(printf '%s\n' "$gate" | grep -F "$routing_rule" | head -1)"
+    if ! printf '%s' "${rule_line#*"$routing_rule"}" | grep -qF '§3'; then
+      fail "$ORCHESTRATOR states the routing rule without citing §3 after it; a reader cannot reach the closed vocabulary the rule is about"
     fi
   fi
 fi
