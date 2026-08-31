@@ -330,7 +330,10 @@ At every phase boundary, before any dependent phase starts:
    the absolute contract path. Escalate an inline boundary to the validator when a check smells
    wrong.
 4. PASS → if a user gate is due, present the artifact there (§11 rule 1); otherwise route by
-   the §3 token.
+   the §3 token. **Route by the token, never by the prose.** (§3) `executive_summary` explains;
+   only the token routes. A value outside §3's closed vocabulary is unrecognised: report it and
+   launch no phase — never infer intent from the sentence beside it, and never accept a
+   free-form value such as `"resume sdd-apply"`.
 5. FAIL on attempt 1 → re-run the SAME phase EXACTLY ONCE, with the failed checks appended as
    corrective feedback. Do not edit the artifact yourself, do not substitute a different phase,
    do not skip ahead.
