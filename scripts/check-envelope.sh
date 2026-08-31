@@ -1118,6 +1118,40 @@ else
     if ! printf '%s\n' "$step1" | grep -qiE 'preserv'; then
       fail "$ARCHIVE_SKILL Step 1 does not preserve the requirements a delta never mentions"
     fi
+
+    # A31 — the three things the Phase-7 dogfood proved a literal reading of this rule destroys.
+    # All three are engram-only: the openspec branch is a git working tree, so a bad merge there
+    # is one `git checkout` away from recovery. An engram upsert replaces the body wholesale and
+    # the store has no revert, which is what makes each of these a deletion rather than a mistake.
+
+    # (a) A main spec is not only requirements. Its header can carry adjudications and a decision
+    # record that no delta mentions, so a walk that matches `### Requirement:` never visits them.
+    # The alternates are deliberately narrow: `header` alone would be answered by "split the
+    # delta on its domain headers" and `adjudication` by step 5's own sentence, neither of which
+    # says anything about carrying non-requirement material forward.
+    if ! printf '%s\n' "$step1" | grep -qiE 'not a requirement|non-requirement'; then
+      fail "$ARCHIVE_SKILL Step 1's engram merge preserves requirements only; a main spec header carrying an adjudication or a decision record is deleted by a literal reading, because the requirement-by-requirement walk never visits it"
+    fi
+
+    # (b) The delta's shared preamble. Splitting on domain headers says nothing about what sits
+    # ABOVE the first one, and that is where a legend every scenario keys on tends to live.
+    if ! printf '%s\n' "$step1" | grep -qiE 'outside any domain|outside the domain|above the first'; then
+      fail "$ARCHIVE_SKILL Step 1 does not say what becomes of delta material outside the domain sections; the legend the scenarios key on lives above the first domain header and a literal split drops it"
+    fi
+
+    # (c) A way back. The rule states its own hazard — an omitted requirement is a deleted one —
+    # and offered no recovery path, so the first bad merge was unrecoverable.
+    if ! printf '%s\n' "$step1" | grep -qiE 'snapshot'; then
+      fail "$ARCHIVE_SKILL Step 1 requires no pre-merge snapshot; the step names its own hazard with no way back, and engram has no revert"
+    fi
+
+    if ! printf '%s\n' "$step1" | grep -iE 'snapshot' | grep -qiE 'before|precede|prior to'; then
+      fail "$ARCHIVE_SKILL Step 1 mentions a snapshot without ordering it before the first upsert; a snapshot taken after the write is a copy of the damage"
+    fi
+
+    if ! printf '%s\n' "$step1" | grep -iE 'snapshot' | grep -qiE 'archive report|observation id|record'; then
+      fail "$ARCHIVE_SKILL Step 1 does not record the snapshot where a human could find it; an unrecorded snapshot id is not a recovery path"
+    fi
   fi
 fi
 
