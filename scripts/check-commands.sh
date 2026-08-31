@@ -8,9 +8,23 @@ REGISTRY=skills/_shared/engram-convention.md
 ORCHESTRATOR=skills/sdd-orchestrator/SKILL.md
 USING=skills/using-sdd/SKILL.md
 
+# Failures accumulate instead of exiting at the first one, matching check-envelope.sh: a single
+# run then names every violated assertion, which is what makes a deliberate one-line mutation
+# observable even when an unrelated assertion is already failing.
+FAILURES=""
+
 fail() {
-  echo "check-commands: FAIL — $1" >&2
-  exit 1
+  FAILURES="${FAILURES}${FAILURES:+$'\n'}$1"
+}
+
+# Called at the end, and early wherever continuing would run an assertion against a file or a set
+# that is not there — those cases report what is known and stop rather than cascade.
+report() {
+  if [ -n "$FAILURES" ]; then
+    echo "check-commands: FAIL — $(printf '%s\n' "$FAILURES" | head -1)" >&2
+    printf '%s\n' "$FAILURES" | tail -n +2 | sed 's/^/  also: /' >&2
+    exit 1
+  fi
 }
 
 # The roster is never hardcoded here: it is extracted from the consumer tables at runtime,
@@ -41,8 +55,13 @@ for i in "${!TABLE_NAMES[@]}"; do
   fi
 done
 
+# A missing source set is not one more finding: the roster below is the union of the sets, so an
+# empty one turns every remaining assertion into a report about the extraction, not about drift.
+report
+
 if [ ! -d commands ]; then
   fail "commands/ directory is missing"
+  report
 fi
 
 command_names="$(find commands -maxdepth 1 -name '*.md' -exec basename {} .md \; | sed 's|^|/|' | sort -u || true)"
@@ -50,6 +69,7 @@ command_names="$(find commands -maxdepth 1 -name '*.md' -exec basename {} .md \;
 # A membership check over an empty directory proves nothing, so emptiness is itself a failure.
 if [ -z "$command_names" ]; then
   fail "commands/ contains no command files; the roster check would be vacuous"
+  report
 fi
 
 # B1 — set equality across five sources: the four consumer tables and the directory itself.
@@ -149,6 +169,7 @@ fi
 # B8 — the registry and the status projection map describe the same change-scoped types.
 if [ ! -f "$CONTRACT" ]; then
   fail "$CONTRACT is missing; the registry has no projection map to agree with"
+  report
 fi
 
 registry_types="$(
@@ -177,11 +198,18 @@ if [ -z "$contract_types" ]; then
   fail "$CONTRACT: the §4 artifacts map yielded no types; extraction is broken"
 fi
 
+# An empty side would make comm below name every type as drift, burying the extraction fault.
+if [ -z "$registry_types" ] || [ -z "$contract_types" ]; then
+  report
+fi
+
 only_registry="$(comm -23 <(echo "$registry_types") <(echo "$contract_types") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
 only_contract="$(comm -13 <(echo "$registry_types") <(echo "$contract_types") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
 
 if [ -n "$only_registry" ] || [ -n "$only_contract" ]; then
   fail "artifact type drift: registry-only: ${only_registry:-none}; projection-only: ${only_contract:-none}"
 fi
+
+report
 
 echo "check-commands: OK — roster frozen at $(echo "$roster" | wc -l | tr -d ' ') across four tables and commands/; registry complete"
