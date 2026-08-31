@@ -1133,10 +1133,18 @@ else
       fail "$ARCHIVE_SKILL Step 1's engram merge preserves requirements only; a main spec header carrying an adjudication or a decision record is deleted by a literal reading, because the requirement-by-requirement walk never visits it"
     fi
 
-    # (b) The delta's shared preamble. Splitting on domain headers says nothing about what sits
-    # ABOVE the first one, and that is where a legend every scenario keys on tends to live.
-    if ! printf '%s\n' "$step1" | grep -qiE 'outside any domain|outside the domain|above the first'; then
-      fail "$ARCHIVE_SKILL Step 1 does not say what becomes of delta material outside the domain sections; the legend the scenarios key on lives above the first domain header and a literal split drops it"
+    # (b) The delta's shared material, at BOTH ends. Splitting on domain headers says nothing
+    # about what sits above the first one or below the last, and a delta has both: a legend every
+    # scenario keys on at the top, a Coverage Summary and Lineage at the bottom. The first
+    # version of this clause accepted "above the first" alone, so a rule covering only the
+    # preamble stayed green while the trailer — the case the rule was written for — was
+    # unprotected. One clause per end, so neither can answer for the other.
+    if ! printf '%s\n' "$step1" | grep -qiE 'above the first'; then
+      fail "$ARCHIVE_SKILL Step 1 does not say what becomes of delta material above the first domain header; the legend every scenario keys on lives there and a literal split drops it"
+    fi
+
+    if ! printf '%s\n' "$step1" | grep -qiE 'below the last|after the last'; then
+      fail "$ARCHIVE_SKILL Step 1 does not say what becomes of delta material below the last domain header; the Coverage Summary, Risks and Lineage live there and a literal split drops them"
     fi
 
     # (c) A way back. The rule states its own hazard — an omitted requirement is a deleted one —
@@ -1157,6 +1165,44 @@ else
     if ! printf '%s\n' "$step1" | grep -iE 'observation id' | grep -qiE 'archive report'; then
       fail "$ARCHIVE_SKILL Step 1 does not record the snapshot's observation id in the archive report; an id nobody wrote down is not a recovery path"
     fi
+  fi
+fi
+
+# A32 — the three things the FIRST REAL RUN of the corrected merge rule proved it still lacked.
+# A26 and A31 were written from a dogfood that read the rule; these come from applying it, which
+# found what reading could not: a domain set taken from the wrong line, an ordering with no
+# mechanism, and a size limit nothing measures against.
+if [ -n "$step1" ]; then
+  # (a) Where the domain set comes from. A delta header names the main specs it READ, two lines
+  # from the domains it PRODUCES, and the wrong one sounds more authoritative. Taking the read
+  # list would have upserted over an untouched spec and stranded a whole domain.
+  if ! printf '%s\n' "$step1" | grep -qF '# Domain:'; then
+    fail "$ARCHIVE_SKILL Step 1 does not name \`# Domain:\` as the source of the domain set; the merge would take its domains from whatever list the dispatcher read first"
+  fi
+
+  if ! printf '%s\n' "$step1" | grep -qi 'main specs read'; then
+    fail "$ARCHIVE_SKILL Step 1 does not warn off the delta's \"main specs read\" line; that list is what the delta consulted, not what it produces, and it sits in the same header"
+  fi
+
+  # (b) The snapshot ids are recorded in the archive report BEFORE the first upsert, and the
+  # archive report is the phase's last artifact. Both hold only via a two-pass write. Without the
+  # mechanism the naive reading satisfies the words and leaves the snapshot unfindable.
+  if ! printf '%s\n' "$step1" | grep -qi 'stub'; then
+    fail "$ARCHIVE_SKILL Step 1 orders the snapshot ids before the first upsert but names no mechanism; the archive report is written last, so the two requirements are unsatisfiable together without a stub-then-upsert pass"
+  fi
+
+  # (c) A size rule. Rules 1 and 6 grow every main spec monotonically and duplicate the shared
+  # material once per domain; the store truncates silently and reports success.
+  if ! printf '%s\n' "$step1" | grep -qF '50,000'; then
+    fail "$ARCHIVE_SKILL Step 1 names no size limit; the merge grows a main spec on every pass and the store truncates silently at 50,000 bytes"
+  fi
+
+  if ! printf '%s\n' "$step1" | grep -F '50,000' | grep -qiE 'stop|refuse|do not write'; then
+    fail "$ARCHIVE_SKILL Step 1 names the size limit without stopping short of it; a merge that measures and writes anyway has measured nothing"
+  fi
+
+  if ! printf '%s\n' "$step1" | grep -qiE 'read it back|read back|round-trip'; then
+    fail "$ARCHIVE_SKILL Step 1 requires no read-back after the upsert; a silent truncation reports success, so the write is only confirmed by retrieving what was stored"
   fi
 fi
 
