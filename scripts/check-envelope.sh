@@ -1193,16 +1193,27 @@ if [ -n "$step1" ]; then
 
   # (c) A size rule. Rules 1 and 6 grow every main spec monotonically and duplicate the shared
   # material once per domain; the store truncates silently and reports success.
-  if ! printf '%s\n' "$step1" | grep -qF '50,000'; then
-    fail "$ARCHIVE_SKILL Step 1 names no size limit; the merge grows a main spec on every pass and the store truncates silently at 50,000 bytes"
-  fi
+  #
+  # These three read the numbered rule's own body rather than one line of it. The same-line
+  # idiom used elsewhere in this script pins two halves of a SHAPE together, which is worth its
+  # brittleness; pinning two halves of a PARAGRAPH to one line only couples the assertion to
+  # where the prose happens to wrap, and a reflow that changes no meaning turns CI red.
+  size_rule="$(printf '%s\n' "$step1" | awk '/^8\. / { f = 1 } f')"
 
-  if ! printf '%s\n' "$step1" | grep -F '50,000' | grep -qiE 'stop|refuse|do not write'; then
-    fail "$ARCHIVE_SKILL Step 1 names the size limit without stopping short of it; a merge that measures and writes anyway has measured nothing"
-  fi
+  if [ -z "$size_rule" ]; then
+    fail "$ARCHIVE_SKILL Step 1 has no rule 8; the merge grows a main spec on every pass with nothing bounding it, and every clause below would pass vacuously"
+  else
+    if ! printf '%s\n' "$size_rule" | grep -qF '50,000'; then
+      fail "$ARCHIVE_SKILL Step 1's rule 8 names no size limit; the store truncates silently at 50,000 bytes and a rule that does not say the number cannot be measured against"
+    fi
 
-  if ! printf '%s\n' "$step1" | grep -qiE 'read it back|read back|round-trip'; then
-    fail "$ARCHIVE_SKILL Step 1 requires no read-back after the upsert; a silent truncation reports success, so the write is only confirmed by retrieving what was stored"
+    if ! printf '%s\n' "$size_rule" | grep -qiE 'stop|refuse|do not write'; then
+      fail "$ARCHIVE_SKILL Step 1's rule 8 names the size limit without stopping short of it; a merge that measures and writes anyway has measured nothing"
+    fi
+
+    if ! printf '%s\n' "$size_rule" | grep -qiE 'read it back|read back|round-trip'; then
+      fail "$ARCHIVE_SKILL Step 1's rule 8 requires no read-back after the upsert; a silent truncation reports success, so the write is only confirmed by retrieving what was stored"
+    fi
   fi
 fi
 

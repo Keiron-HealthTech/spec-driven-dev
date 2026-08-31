@@ -102,18 +102,27 @@ openspec/changes/{change-name}/specs/{domain}/spec.md
 The delta is ONE observation at topic `sdd/{change-name}/spec`, with every domain concatenated
 into it. The main specs are one observation per domain at `sdd/specs/{domain}`. Sync like this:
 
-1. Split the delta on its domain headers. A multi-domain delta produces **one upsert per domain**,
-   never one merged observation. Delta material sitting **outside any domain section** — a
-   legend, a shared preamble, a mode note, anything above the first domain header — belongs to
-   EVERY domain the split produces. Carry it into each upsert. Leaving it in the first domain
-   only, or dropping it because the split did not name it, strands every scenario that keys on
-   it.
+1. Split the delta on its domain headers. **The domain set is the delta's `# Domain:` headers
+   and nothing else** — in particular it is NOT the delta header's "main specs read" line, which
+   records what the author consulted while writing, sits two lines away, and sounds more
+   authoritative. Merging into a spec the delta only read overwrites untouched content and
+   strands the domain it did produce. A multi-domain delta produces **one upsert per domain**,
+   never one merged observation. Delta material sitting **outside any domain section** belongs
+   to EVERY domain the split produces: whatever sits above the first domain header — a legend, a
+   shared preamble, a mode note — and whatever sits below the last, which is where the Coverage
+   Summary, Risks and Lineage trailer live.
+   Carry it into each upsert. Leaving it in the first domain only, or dropping it because the
+   split did not name it, strands every scenario that keys on it.
 2. **Snapshot before you write.** For each `sdd/specs/{domain}` the merge will touch, save its
    retrieved body unchanged at `sdd/specs/{domain}/pre-merge-{YYYY-MM-DD}` and **record every
    snapshot's observation id in the archive report — before the first upsert.** Upsert replaces
    the body wholesale and engram has no revert, so this snapshot is the only way back. A
    snapshot taken after the write is a copy of the damage; an id nobody recorded is not a
-   recovery path. The `openspec` branch needs none of this: git is already its snapshot.
+   recovery path. The archive report is this phase's LAST artifact, so satisfying both orderings
+   takes two passes: write a **stub** archive report carrying the snapshot ids first, then upsert
+   the finished report over the same topic at the end. Without the stub the two requirements
+   cannot both hold, and the reading that satisfies the words leaves the snapshot unfindable.
+   The `openspec` branch needs none of this: git is already its snapshot.
 3. Retrieve `sdd/specs/{domain}` for each domain the delta touches. If it does not exist, that
    domain's section IS the full main spec — upsert it as it stands.
 4. If it does exist, merge requirement by requirement, matching requirements by name:
@@ -131,6 +140,13 @@ into it. The main specs are one observation per domain at `sdd/specs/{domain}`. 
 7. Record any design-over-spec adjudication applied while merging in BOTH the main spec and the
    archive report. The merge is where an adjudication stops being a note and becomes the source
    of truth.
+8. **Measure the merged body before you write it, and STOP short of the store's limit.** Rules 1
+   and 6 grow a main spec on every merge and copy the shared material into each domain, so a
+   domain only ever gets bigger. Engram truncates silently and reports success, so an over-limit
+   upsert is a deletion of the tail with no error to notice: within 10% of **50,000 bytes**, do
+   not write it — STOP, report the measured size, and let a human decide whether to split the
+   domain. After every upsert, **read it back** and confirm the stored body ends on the last
+   line you authored; a round-trip is the only proof the write survived.
 
 Topic forms and naming come from `skills/_shared/engram-convention.md`; this step defines none.
 
