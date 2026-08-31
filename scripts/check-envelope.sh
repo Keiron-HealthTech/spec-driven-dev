@@ -1149,8 +1149,13 @@ else
       fail "$ARCHIVE_SKILL Step 1 mentions a snapshot without ordering it before the first upsert; a snapshot taken after the write is a copy of the damage"
     fi
 
-    if ! printf '%s\n' "$step1" | grep -iE 'snapshot' | grep -qiE 'archive report|observation id|record'; then
-      fail "$ARCHIVE_SKILL Step 1 does not record the snapshot where a human could find it; an unrecorded snapshot id is not a recovery path"
+    # Both halves on one line, and neither is `record` alone: the sentence that EXPLAINS the rule
+    # ("an id nobody recorded is not a recovery path") sits beside the word snapshot and answered
+    # a looser clause by itself, leaving the actual requirement deletable while CI stayed green.
+    # Step 7's "in BOTH the main spec and the archive report" is about adjudications and carries
+    # no `observation id`, so it cannot answer this either.
+    if ! printf '%s\n' "$step1" | grep -iE 'observation id' | grep -qiE 'archive report'; then
+      fail "$ARCHIVE_SKILL Step 1 does not record the snapshot's observation id in the archive report; an id nobody wrote down is not a recovery path"
     fi
   fi
 fi
