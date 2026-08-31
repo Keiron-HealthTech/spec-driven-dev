@@ -11,6 +11,19 @@ metadata:
   auto_invoke: "Archiving a completed change"
 ---
 
+> **ORCHESTRATOR GATE** — If you loaded this file with the Skill tool, you are the
+> ORCHESTRATOR: STOP. Do NOT execute these instructions inline. Launch a sub-agent with
+> `Task(subagent_type: 'general')` whose prompt names this skill file and the absolute
+> path to `skills/_shared/sdd-status-contract.md`, per the Sub-Agent Launching Pattern in
+> `skills/sdd-orchestrator/SKILL.md`. This file is for EXECUTORS.
+
+## Executor Override
+
+If you ARE the sub-agent launched for this phase — your prompt told you to read this skill
+file and follow it — the gate above does NOT apply to you. Do not delegate, do not call the
+Skill tool, do not read the gate as an instruction to stop. You are the executor: execute
+the phase work below and return the §2 envelope.
+
 ## Purpose
 
 You are a sub-agent responsible for ARCHIVING. You merge delta specs into the main specs (source of truth), then move the change folder to the archive. You complete the SDD cycle.
@@ -42,7 +55,8 @@ Before any spec sync or archive move, retrieve the change's review ledger
 
 Then evaluate the gate (canonical rule: contract §11):
 
-- **BLOCK** the archive if any BLOCKER or CRITICAL row has a status other than `verified`, `refuted`, or `wont-fix`. `open` rows, un-reverified `fixed` rows, and JD `suspect` rows all block — a `fixed` row without a verifying re-review is NOT closed; the review loop did not converge and the user must decide, never the agent. Return `status: blocked`, list every offending row (id, location, severity, status), and set `next_recommended`: run `/sdd-review {change-name}` for a fix round, or ask the user for an explicit wont-fix decision.
+- **BLOCK** the archive if any BLOCKER or CRITICAL row has a status other than `verified`, `refuted`, or `wont-fix`. `open` rows, un-reverified `fixed` rows, and JD `suspect` rows all block — a `fixed` row without a verifying re-review is NOT closed; the review loop did not converge and the user must decide, never the agent. Return `status: blocked` and list every offending row (id, location, severity, status).
+- On a blocked archive set `next_recommended: resolve-review`; the user chooses a fix round or an explicit wont-fix decision.
 - `wont-fix` closes a row ONLY when its evidence records an explicit user decision in the exact form `wont-fix — user decision (YYYY-MM-DD): {reason}`. A wont-fix row without a recorded user decision counts as open and blocks. NEVER set wont-fix yourself — only the user can authorize it, and the sdd-review coordinator records it.
 - Rows with status `info` never block (severity floor, contract §5).
 - If no ledger exists, WARN that this change was implemented without review and require explicit user confirmation before proceeding (backwards compatibility for pre-review changes).
@@ -50,9 +64,14 @@ Then evaluate the gate (canonical rule: contract §11):
 
 ### Step 1: Sync Delta Specs to Main Specs
 
+The delta spec becomes part of the main specs. Where both live depends on the active mode —
+resolution in `skills/_shared/persistence-contract.md`.
+
+#### In `openspec` mode
+
 For each delta spec in `openspec/changes/{change-name}/specs/`:
 
-#### If Main Spec Exists (`openspec/specs/{domain}/spec.md`)
+##### If Main Spec Exists (`openspec/specs/{domain}/spec.md`)
 
 Read the existing main spec and apply the delta:
 
@@ -68,7 +87,7 @@ FOR EACH SECTION in delta spec:
 - Preserve all OTHER requirements that aren't in the delta
 - Maintain proper Markdown formatting and heading hierarchy
 
-#### If Main Spec Does NOT Exist
+##### If Main Spec Does NOT Exist
 
 The delta spec IS a full spec (not a delta). Copy it directly:
 
@@ -77,6 +96,59 @@ The delta spec IS a full spec (not a delta). Copy it directly:
 openspec/changes/{change-name}/specs/{domain}/spec.md
   → openspec/specs/{domain}/spec.md
 ```
+
+#### In `engram` mode
+
+The delta is ONE observation at topic `sdd/{change-name}/spec`, with every domain concatenated
+into it. The main specs are one observation per domain at `sdd/specs/{domain}`. Sync like this:
+
+1. Split the delta on its domain headers. **The domain set is the delta's `# Domain:` headers
+   and nothing else** — in particular it is NOT the delta header's "main specs read" line, which
+   records what the author consulted while writing, sits two lines away, and sounds more
+   authoritative. Merging into a spec the delta only read overwrites untouched content and
+   strands the domain it did produce. A multi-domain delta produces **one upsert per domain**,
+   never one merged observation. Delta material sitting **outside any domain section** belongs
+   to EVERY domain the split produces: whatever sits above the first domain header — a legend, a
+   shared preamble, a mode note — and whatever sits below the last, which is where the Coverage
+   Summary, Risks and Lineage trailer live.
+   Carry it into each upsert. Leaving it in the first domain only, or dropping it because the
+   split did not name it, strands every scenario that keys on it.
+2. **Snapshot before you write.** For each `sdd/specs/{domain}` the merge will touch, save its
+   retrieved body unchanged at `sdd/specs/{domain}/pre-merge-{YYYY-MM-DD}` and **record every
+   snapshot's observation id in the archive report — before the first upsert.** Upsert replaces
+   the body wholesale and engram has no revert, so this snapshot is the only way back. A
+   snapshot taken after the write is a copy of the damage; an id nobody recorded is not a
+   recovery path. The archive report is this phase's LAST artifact, so satisfying both orderings
+   takes two passes: write a **stub** archive report carrying the snapshot ids first, then upsert
+   the finished report over the same topic at the end. Without the stub the two requirements
+   cannot both hold, and the reading that satisfies the words leaves the snapshot unfindable.
+   The `openspec` branch needs none of this: git is already its snapshot.
+3. Retrieve `sdd/specs/{domain}` for each domain the delta touches. If it does not exist, that
+   domain's section IS the full main spec — upsert it as it stands.
+4. If it does exist, merge requirement by requirement, matching requirements by name:
+   - ADDED → append the requirement to the main spec
+   - MODIFIED → replace the requirement the delta names
+   - REMOVED → delete the requirement the delta names
+5. **Preserve every requirement the delta does not mention.** Upsert replaces the observation
+   body wholesale, so a requirement omitted from the merge is a requirement deleted from the
+   spec.
+6. **Preserve everything in the main spec that is not a requirement.** A main spec's header can
+   carry adjudications, a decision record, a pass set — material no delta mentions and the
+   requirement-by-requirement walk in step 4 never visits, so matching on `### Requirement:`
+   alone silently deletes it. Carry the header, any preamble and any decision record forward
+   verbatim unless the delta explicitly replaces them.
+7. Record any design-over-spec adjudication applied while merging in BOTH the main spec and the
+   archive report. The merge is where an adjudication stops being a note and becomes the source
+   of truth.
+8. **Measure the merged body before you write it, and STOP short of the store's limit.** Rules 1
+   and 6 grow a main spec on every merge and copy the shared material into each domain, so a
+   domain only ever gets bigger. Engram truncates silently and reports success, so an over-limit
+   upsert is a deletion of the tail with no error to notice: within 10% of **50,000 bytes**, do
+   not write it — STOP, report the measured size, and let a human decide whether to split the
+   domain. After every upsert, **read it back** and confirm the stored body ends on the last
+   line you authored; a round-trip is the only proof the write survived.
+
+Topic forms and naming come from `skills/_shared/engram-convention.md`; this step defines none.
 
 ### Step 2: Move to Archive
 
@@ -149,4 +221,4 @@ Your job is ONLY the archive (spec sync + folder move). Branch completion is han
 - The archive is an AUDIT TRAIL — never delete or modify archived changes
 - If `openspec/changes/archive/` doesn't exist, create it
 - Apply any `rules.archive` from `openspec/config.yaml`
-- Return a structured envelope with: `status`, `executive_summary`, `detailed_report` (optional), `artifacts`, `next_recommended`, and `risks`
+- Return the canonical envelope defined in `skills/_shared/sdd-status-contract.md` §2; `status` values come from §2 and every `next_recommended` value from the CLOSED §3 vocabulary — never invent a field, a status value, or a routing token

@@ -9,6 +9,24 @@ Claude Code plugin for Spec-Driven Development (SDD) — a 6-phase workflow that
 /plugin install spec-driven-dev@spec-driven-dev
 ```
 
+## Commands
+
+| Command | Action |
+| --- | --- |
+| `/sdd-init` | Initialize SDD context in current project |
+| `/sdd-explore <topic>` | Think through an idea (no files created) |
+| `/sdd-new <change-name>` | Start a new change (discovery loop → proposal) |
+| `/sdd-continue [change-name]` | Create next artifact in dependency chain |
+| `/sdd-ff [change-name]` | Fast-forward: create all planning artifacts |
+| `/sdd-apply [change-name]` | Implement tasks |
+| `/sdd-review [change-name|target]` | Review implemented diff (triage → lenses → refute → fix; JD on request) |
+| `/sdd-verify [change-name]` | Validate implementation |
+| `/sdd-archive [change-name]` | Sync specs + archive + branch completion |
+| `/sdd-debug [change-name]` | Debug unexpected failures with root cause protocol |
+| `/sdd-status [change-name]` | Report cycle state, read-only |
+
+`/sdd-status` reconstructs cycle state from the persisted artifacts of a change, so it answers the same way in a fresh session as it does mid-cycle. It writes nothing.
+
 ## Skills
 
 | Skill | Description |
@@ -31,7 +49,7 @@ Claude Code plugin for Spec-Driven Development (SDD) — a 6-phase workflow that
 
 ## Agents
 
-The review system ships 8 dedicated agents (auto-discovered from `agents/`, dispatched as `spec-driven-dev:{agent-name}`):
+The plugin ships 9 dedicated agents (auto-discovered from `agents/`, dispatched as `spec-driven-dev:{agent-name}`) — eight for the review system, plus the phase gate validator:
 
 | Agent | Role | Tools |
 |-------|------|-------|
@@ -43,6 +61,7 @@ The review system ships 8 dedicated agents (auto-discovered from `agents/`, disp
 | `jd-judge-b` | Blind Judge B — generated from Judge A, never hand-edited | Read, Grep, Glob |
 | `review-refuter` | Batch adversarial verifier for BLOCKER/CRITICAL candidates | Read, Grep, Glob |
 | `jd-fix-agent` | The only writer — applies fixes for confirmed ledger IDs | Read, Grep, Glob, Edit, Write, Bash |
+| `phase-validator` | Fresh-context phase gate validator — read-only, non-adversarial | Read, Grep, Glob (+ read-only Engram lookups) |
 
 ## Review Workflow
 
@@ -53,9 +72,17 @@ The review system ships 8 dedicated agents (auto-discovered from `agents/`, disp
 - **Judgment Day** (explicit request only): two blind judges replace the lenses; only convergent findings are fixable, and contradictions escalate to the human.
 - **Archive gate**: `sdd-archive` refuses to archive while the ledger has open BLOCKER/CRITICAL rows.
 
+## Phase Gate
+
+In automatic mode the orchestrator runs a five-check gate between delegated phases; the checks, the inline-versus-delegated split and the re-run budget are defined in `skills/_shared/sdd-status-contract.md` §8 and §9. A failing phase is re-run exactly once with the failed checks as corrective feedback, and a second failure stops the cycle instead of advancing anything downstream of it.
+
+The gate is `self-policing`, and that limit is disclosed rather than hidden: the orchestrator runs the gate, grades its own delegates, and decides whether to run it at all. Nothing in a markdown plugin stops it from skipping its own gate, and nothing detects that it did. §12 of the same contract names the authority that would be needed to enforce it — an attempt ledger, cryptographic receipts, transactional review state, edit-root allowlists — and records that none of it is ported.
+
 ## Attribution
 
-The multi-agent review system (4R lenses, Judgment Day judges, refuter, fix agent) is adapted from [gentle-ai](https://github.com/Gentleman-Programming/gentle-ai) by Gentleman Programming, MIT licensed.
+The multi-agent review system (4R lenses, Judgment Day judges, refuter, fix agent), the status contract and the phase gatekeeper are all adapted from [gentle-ai](https://github.com/Gentleman-Programming/gentle-ai) by Gentleman Programming, MIT licensed.
+
+The port is deliberately partial. The parts of gentle-ai's contract that rest on its Go binary have no equivalent here, and the contract says which ones and why rather than implying full parity.
 
 ## Peer Dependencies
 

@@ -13,6 +13,13 @@ metadata:
   auto_invoke: "Reviewing an implemented change or diff"
 ---
 
+> **LEAD-LEVEL SKILL** — this skill is the ONE exception to the executor gate that guards
+> the ten phase skills. If you loaded it with the Skill tool you are the ORCHESTRATOR and
+> you are CORRECT to follow it inline: do NOT delegate this file to a sub-agent. Every
+> reviewer must be its own `Task(...)` launch and sub-agents cannot launch sub-agents
+> (orchestrator Rule 10 exception (b)). A sub-agent handed this file should stop and report
+> the mis-dispatch instead of running the review.
+
 ## Execution Level
 
 This skill runs at LEAD level. The orchestrator loads it with the Skill tool and
@@ -263,14 +270,16 @@ Close with exactly ONE outcome token:
 | `REVIEW: OPEN-FINDINGS` | One or more BLOCKER/CRITICAL rows remain open (round budget exhausted, or the user declined fixes) |
 | `REVIEW: ESCALATED` | At least one finding needs a human decision (JD contradiction, or a suspect row the user left unresolved) |
 
-Wrap the summary in the standard structured envelope: `status`,
-`executive_summary`, `detailed_report` (the Review Summary above), `artifacts`
-(the ledger reference), `next_recommended`, and `risks`.
+Wrap the summary in the canonical envelope defined in
+`skills/_shared/sdd-status-contract.md` §2, putting the Review Summary above in
+`detailed_report` and the ledger reference in `artifacts`.
 
-Routing for `next_recommended`:
+Routing (tokens per §3):
 
-- `CLEAN` / `RESOLVED` → `/sdd-verify {change-name}` (change-bound; ad-hoc reviews end here)
-- `OPEN-FINDINGS` / `ESCALATED` → user decision required (fix round, wont-fix, or accept the risk); the orchestrator MUST NOT auto-proceed to verify
+| Outcome | Token |
+|---------|-------|
+| `CLEAN` / `RESOLVED` | `next_recommended: verify` — change-bound only; ad-hoc reviews end here and return no token |
+| `OPEN-FINDINGS` / `ESCALATED` | `next_recommended: resolve-review` — the user decides; the orchestrator MUST NOT auto-proceed to verify |
 
 ## Rules
 

@@ -11,6 +11,19 @@ metadata:
   auto_invoke: "Writing specifications for a change"
 ---
 
+> **ORCHESTRATOR GATE** — If you loaded this file with the Skill tool, you are the
+> ORCHESTRATOR: STOP. Do NOT execute these instructions inline. Launch a sub-agent with
+> `Task(subagent_type: 'general')` whose prompt names this skill file and the absolute
+> path to `skills/_shared/sdd-status-contract.md`, per the Sub-Agent Launching Pattern in
+> `skills/sdd-orchestrator/SKILL.md`. This file is for EXECUTORS.
+
+## Executor Override
+
+If you ARE the sub-agent launched for this phase — your prompt told you to read this skill
+file and follow it — the gate above does NOT apply to you. Do not delegate, do not call the
+Skill tool, do not read the gate as an instruction to stop. You are the executor: execute
+the phase work below and return the §2 envelope.
+
 ## Purpose
 
 You are a sub-agent responsible for writing SPECIFICATIONS. You take the proposal and produce delta specs — structured requirements and scenarios that describe what's being ADDED, MODIFIED, or REMOVED from the system's behavior.
@@ -155,7 +168,7 @@ Ready for design (sdd-design). If design already exists, ready for tasks (sdd-ta
 - Keep scenarios TESTABLE — someone should be able to write an automated test from each one
 - DO NOT include implementation details in specs — specs describe WHAT, not HOW
 - Apply any `rules.specs` from `openspec/config.yaml`
-- Return a structured envelope with: `status`, `executive_summary`, `detailed_report` (optional), `artifacts`, `next_recommended`, and `risks`
+- Return the canonical envelope defined in `skills/_shared/sdd-status-contract.md` §2; `status` values come from §2 and every `next_recommended` value from the CLOSED §3 vocabulary — never invent a field, a status value, or a routing token
 
 ## RFC 2119 Keywords Quick Reference
 

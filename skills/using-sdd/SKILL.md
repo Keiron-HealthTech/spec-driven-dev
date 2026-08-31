@@ -52,6 +52,8 @@ SDD is a 6-phase workflow for planning and implementing changes with rigor. Each
 | `/sdd-review [change-name|target]` | Review implemented diff (triage → lenses → refute → fix; JD on request) |
 | `/sdd-verify [change-name]` | Validate implementation |
 | `/sdd-archive [change-name]` | Sync specs + archive + branch completion |
+| `/sdd-debug [change-name]` | Debug unexpected failures with root cause protocol |
+| `/sdd-status [change-name]` | Report cycle state, read-only |
 
 ### SDD Triggers
 
@@ -63,6 +65,7 @@ Activate SDD when:
 - User says: "sdd review", "revisar código", "review this change", "judgment day", "dual review"
 - User says: "sdd verify", "verificar"
 - User says: "sdd archive", "archivar"
+- User says: "sdd status", "estado del cambio", "where does this change stand"
 - User describes a feature/change and you detect it needs planning
 
 Do NOT force SDD on small tasks (single file edits, quick fixes, questions).
@@ -80,6 +83,8 @@ Do NOT force SDD on small tasks (single file edits, quick fixes, questions).
 | `/sdd-review` | `sdd-review` (LEAD-level — the orchestrator loads and follows it; never dispatched as a sub-agent) |
 | `/sdd-verify` | `sdd-verify` |
 | `/sdd-archive` | `sdd-archive` |
+| `/sdd-debug` | `sdd-debug` |
+| `/sdd-status` | Read-only — no skill; returns the status contract §4 projection |
 
 ### Dependency Graph
 

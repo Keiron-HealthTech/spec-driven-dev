@@ -79,6 +79,7 @@ When writing/updating artifacts, ALWAYS use `topic_key` for upserts (avoids dupl
 | `/sdd-verify [change-name]` | Validate implementation |
 | `/sdd-archive [change-name]` | Sync specs + archive + branch completion |
 | `/sdd-debug [change-name]` | Debug unexpected failures with root cause protocol |
+| `/sdd-status [change-name]` | Report cycle state, read-only |
 
 ## Command → Skill Mapping
 
@@ -94,6 +95,7 @@ When writing/updating artifacts, ALWAYS use `topic_key` for upserts (avoids dupl
 | `/sdd-verify` | sdd-verify | `skills/sdd-verify/SKILL.md` |
 | `/sdd-archive` | sdd-archive + finishing-a-development-branch | `skills/sdd-archive/SKILL.md` |
 | `/sdd-debug` | sdd-debug | `skills/sdd-debug/SKILL.md` |
+| `/sdd-status` | read-only — no skill; returns the contract §4 projection | — |
 
 ---
 
@@ -256,6 +258,15 @@ These rules define what the ORCHESTRATOR (lead/coordinator) does. Sub-agents are
 
 **Sub-agents have FULL access** — they read source code, write code, run commands, and follow the user's coding skills (TDD workflows, framework conventions, testing patterns, etc.).
 
+## Contract Resolution
+
+The canonical status contract is `skills/_shared/sdd-status-contract.md`,
+located relative to THIS skill file: `{directory of this SKILL.md}/../_shared/sdd-status-contract.md`.
+Resolve it to an ABSOLUTE path once, at the start of the cycle, and pass that
+absolute path in every delegate prompt. Never pass a project-relative path:
+sub-agents run with the user's project as cwd and cannot locate the plugin
+themselves.
+
 ## Sub-Agent Launching Pattern
 
 When launching a sub-agent via Task tool:
@@ -273,10 +284,12 @@ Task(
   - Config: {path to openspec/config.yaml}
   - Previous artifacts: {list of paths to read}
 
+  CONTRACT (read FIRST): {absolute path to skills/_shared/sdd-status-contract.md}
+
   TASK:
   {specific task description}
 
-  Return structured output with: status, executive_summary, detailed_report(optional), artifacts, next_recommended, risks.'
+  Return the canonical envelope from the contract §2, with next_recommended drawn from the closed §3 vocabulary.'
 )
 ```
 
@@ -286,15 +299,65 @@ Task(
 the prompt — NOT as `subagent_type: 'general'` plus a skill file. Plugin agents
 register as `{plugin-name}:{agent-name}` and require the exact namespaced name.
 
-## State Tracking
+## Cycle State
 
-After each sub-agent completes, track:
+- Cycle state is the contract §4 projection. Its shape, its enums and its predicates live in
+  `skills/_shared/sdd-status-contract.md`; this section restates none of them.
+- Rebuild it by §7 enumeration of the artifact store on every read — enumerate, never recall.
+  Your context window is not a source of state.
+- It is persisted per §10 as a CACHE. A stale or missing cache is never an error: enumeration
+  wins and the cache is re-written from it.
+- `/sdd-status {change}` renders it. After a compaction, a `/clear`, or a new session, run
+  `/sdd-status {change}` before routing anything.
 
-- Change name
-- Which artifacts exist (brainstorm ✓, proposal ✓, specs ✓, design ✓, tasks ✓)
-- Which tasks are complete (if in apply phase)
-- Review: tier, ledger ref (topic/observation id or path), open/verified/info counts, fix rounds used, outcome token
-- Any issues or blockers reported
+## Automatic Mode Gatekeeper
+
+> **This gate is self-policing.** You both run it and grade your own delegates, and you are the
+> same agent that decides whether to run it at all. Nothing here can stop you skipping it and
+> nothing detects that you did. It is a convention you are asked to honour, not a guarantee
+> this plugin can give — see contract §12.
+
+At every phase boundary, before any dependent phase starts:
+
+1. The phase executor returns. Read its envelope.
+2. Evaluate the five §8 checks: **contract conformance**, **artifact existence**, **no hallucination**, **no drift from inputs**, **routing coherence**.
+   Their definitions live in §8 and are not restated here. Checks 1 and 2 are mechanically
+   decidable in principle; checks 3, 4 and 5 are judgments applied by an agent, not mechanical predicates.
+   None of the five is enforced by tooling — nothing in this plugin runs them for you.
+3. Dispatch by boundary, per §8's mapping and never by feel: `explore`, `propose`, `spec`,
+   `tasks`, `review`, `verify` and `archive` are validated inline; `design` and `apply` go to a
+   fresh-context sub-agent, `Task(subagent_type: 'spec-driven-dev:phase-validator')`, carrying
+   the absolute contract path. Escalate an inline boundary to the validator when a check smells
+   wrong.
+4. PASS → if a user gate is due, present the artifact there (§11 rule 1); otherwise route by
+   the §3 token. **Route by the token, never by the prose.** (§3) `executive_summary` explains;
+   only the token routes. A value outside §3's closed vocabulary is unrecognised: report it and
+   launch no phase — never infer intent from the sentence beside it, and never accept a
+   free-form value such as `"resume sdd-apply"`.
+5. FAIL on attempt 1 → re-run the SAME phase EXACTLY ONCE, with the failed checks appended as
+   corrective feedback. Do not edit the artifact yourself, do not substitute a different phase,
+   do not skip ahead.
+6. FAIL on attempt 2 → **STOP**. Report `status: blocked`, one `blockedReasons[]` entry per
+   failed check, and advance no dependent phase. It is a report and never an approval request:
+   the gate does not ask the user for permission to proceed, and there is no attempt 3 — no
+   retry with a different prompt, no escalate-then-retry, no quiet extra pass. Only the user
+   may override, in the §9 form. Write the STOP to the change's `gate-stop` record (§9, topic
+   form in the artifact convention) so it outlives this session and a compacted you still sees
+   it; clear that record when the same phase later passes the gate.
+7. `GATE: UNAVAILABLE` → degrade to inline validation and record `validator unavailable —
+   inline fallback`. Exactly one evaluation per boundary (§11 rule 4): the gate never fires
+   inside the review loop and never opens review budget (§11 rule 3).
+
+The transition diagram is contract §9. Three gates coexist, and this is the third:
+
+| # | Gate | Kind | Owner | Fires |
+|---|------|------|-------|-------|
+| G1 | Tracer-bullet USER GATE | Human approval | User | Once per change, after the tracer batch |
+| G2 | Review USER GATE | Human approval | User | Before the first fix round |
+| G3 | This gate | Agent validation | Orchestrator, self-policing | Every phase boundary |
+
+Precedence is `user override > G3 STOP > orchestrator routing preference`. G3 is a
+pre-condition and never a substitute: only an artifact it has cleared reaches G1 or G2.
 
 ## Fast-Forward (/sdd-ff)
 

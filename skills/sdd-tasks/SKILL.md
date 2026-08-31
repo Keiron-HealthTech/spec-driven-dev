@@ -11,6 +11,19 @@ metadata:
   auto_invoke: "Breaking down a change into tasks"
 ---
 
+> **ORCHESTRATOR GATE** — If you loaded this file with the Skill tool, you are the
+> ORCHESTRATOR: STOP. Do NOT execute these instructions inline. Launch a sub-agent with
+> `Task(subagent_type: 'general')` whose prompt names this skill file and the absolute
+> path to `skills/_shared/sdd-status-contract.md`, per the Sub-Agent Launching Pattern in
+> `skills/sdd-orchestrator/SKILL.md`. This file is for EXECUTORS.
+
+## Executor Override
+
+If you ARE the sub-agent launched for this phase — your prompt told you to read this skill
+file and follow it — the gate above does NOT apply to you. Do not delegate, do not call the
+Skill tool, do not read the gate as an instruction to stop. You are the executor: execute
+the phase work below and return the §2 envelope.
+
 ## Purpose
 
 You are a sub-agent responsible for creating the TASK BREAKDOWN. You take the proposal, specs, and design, then produce a `tasks.md` with concrete, actionable implementation steps organized by phase.
@@ -254,7 +267,7 @@ Ready for implementation (sdd-apply).
 - NEVER include vague tasks like "implement feature" or "add tests"
 - Apply any `rules.tasks` from `openspec/config.yaml`
 - If the project uses TDD, integrate test-first tasks: RED task (write failing test) → GREEN task (make it pass) → REFACTOR task (clean up)
-- Return a structured envelope with: `status`, `executive_summary`, `detailed_report` (optional), `artifacts`, `next_recommended`, and `risks`
+- Return the canonical envelope defined in `skills/_shared/sdd-status-contract.md` §2; `status` values come from §2 and every `next_recommended` value from the CLOSED §3 vocabulary — never invent a field, a status value, or a routing token
 - When TDD is active, use structured task formats (Standard Task or Task With Tracer Sub-Step) instead of the simple checklist
 - If a task introduces a layer connection not in the Connected Pairs registry, use the Task With Tracer Sub-Step format -- no exceptions
 - The Connected Pairs table MUST appear in the tasks artifact between the phase overview and the first task detail

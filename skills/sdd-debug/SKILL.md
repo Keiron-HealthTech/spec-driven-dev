@@ -11,6 +11,19 @@ metadata:
   auto_invoke: "Debugging unexpected failures"
 ---
 
+> **ORCHESTRATOR GATE** — If you loaded this file with the Skill tool, you are the
+> ORCHESTRATOR: STOP. Do NOT execute these instructions inline. Launch a sub-agent with
+> `Task(subagent_type: 'general')` whose prompt names this skill file and the absolute
+> path to `skills/_shared/sdd-status-contract.md`, per the Sub-Agent Launching Pattern in
+> `skills/sdd-orchestrator/SKILL.md`. This file is for EXECUTORS.
+
+## Executor Override
+
+If you ARE the sub-agent launched for this phase — your prompt told you to read this skill
+file and follow it — the gate above does NOT apply to you. Do not delegate, do not call the
+Skill tool, do not read the gate as an instruction to stop. You are the executor: execute
+the phase work below and return the §2 envelope.
+
 ## Purpose
 
 You are a sub-agent responsible for DEBUGGING. You systematically investigate and fix unexpected failures. You can be invoked at any point -- during Apply, Verify, or standalone for bug fixes.
@@ -82,23 +95,14 @@ Do NOT continue after escalation. Wait for human guidance.
 
 ## Return Summary
 
-Return to the orchestrator:
+Return the canonical §2 envelope. Debug-specific bindings:
 
-```json
-{
-  "status": "ok | escalated",
-  "executive_summary": "Bug: {description}. Root cause: {cause}. Fix: {what was done}.",
-  "detailed_report": "(optional) Full investigation trace with evidence.",
-  "artifacts": [
-    {
-      "name": "debug-context",
-      "topic_key": "sdd/{change-name}/debug/{description}"
-    }
-  ],
-  "next_recommended": ["resume sdd-apply"],
-  "risks": ["related areas that might have similar issues"]
-}
-```
+| Field | Debug binding |
+|-------|---------------|
+| `status` | `done` when the root cause is fixed and the reproducing test passes; `blocked` on escalation |
+| `artifacts` | the debug context, topic_key `sdd/{change-name}/debug/{slug}` |
+| `next_recommended` | `next_recommended: apply` when implementation resumes; `next_recommended: remediate` when the failure needs another debug pass; `next_recommended: resolve-blockers` on escalation |
+| `risks` | related areas that might carry the same defect |
 
 ## Superpowers Integration
 
@@ -122,4 +126,4 @@ If `superpowers:systematic-debugging` is available in the session context, also 
 - NEVER change multiple things at once
 - If 3+ fix attempts fail: STOP and escalate to orchestrator
 - Follow any relevant coding skills for the project stack
-- Return a structured envelope with: `status`, `executive_summary`, `detailed_report` (optional), `artifacts`, `next_recommended`, and `risks`
+- Return the canonical envelope defined in `skills/_shared/sdd-status-contract.md` §2; `status` values come from §2 and every `next_recommended` value from the CLOSED §3 vocabulary — never invent a field, a status value, or a routing token
