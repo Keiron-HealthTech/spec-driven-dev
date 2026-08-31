@@ -997,6 +997,57 @@ else
   fi
 fi
 
+# A30 — the routing rule has BOTH halves, in both places. The positive half ("route by the §3
+# token") is stated at the gate's PASS branch; the negative half — never infer intent from prose,
+# never accept a free-form value — is the half that actually constrains a consumer, and it lived
+# only in the canon. A consumer that reads the table but not the prohibition is free to interpret
+# `executive_summary`, which is the exact failure the closed vocabulary exists to prevent.
+#
+# The rule sentence is EXTRACTED from the canon and required verbatim in the consumer, the
+# check-judges.sh pattern: rewording it in the contract turns the consumer red until it follows,
+# so the two sites cannot drift into two different rules.
+routing_rule="$(printf '%s\n' "$sec3" | grep -oE 'Route by the token[^.]*\.' | head -1 || true)"
+
+if [ -z "$routing_rule" ]; then
+  fail "$CONTRACT §3 states no \"Route by the token\" rule; the closed vocabulary would be a table with no instruction on how to read it, and every clause below would pass vacuously"
+else
+  # The canon's own prohibitions, each its own clause so deleting one is reported as that one.
+  if ! printf '%s\n' "$sec3" | grep -qiE 'infer intent|English sentence'; then
+    fail "$CONTRACT §3 forbids no inference of intent from prose; the rule would name the token without ruling out the sentence beside it"
+  fi
+
+  if ! printf '%s\n' "$sec3" | grep -qiE 'free-form'; then
+    fail "$CONTRACT §3 does not reject a free-form value; a consumer could accept \"resume sdd-apply\" and still claim it routed by token"
+  fi
+
+  if ! printf '%s\n' "$sec3" | grep -qiE 'unrecognised|unrecognized'; then
+    fail "$CONTRACT §3 says nothing about an unrecognised value; the closed vocabulary would have no defined behaviour off its own edge"
+  fi
+
+  if [ -z "$gate" ]; then
+    fail "$ORCHESTRATOR has no \"$GATE_HEADING\" section; the routing rule has no consumer site to carry it"
+  else
+    # The consumer carries the canon's sentence, byte for byte, not a paraphrase of it.
+    if ! printf '%s\n' "$gate" | grep -qF "$routing_rule"; then
+      fail "$ORCHESTRATOR's $GATE_HEADING does not carry the canon's rule \"$routing_rule\" verbatim; the orchestrator states only the positive half and nothing forbids it interpreting prose"
+    fi
+
+    # And states the two prohibitions operationally, where it routes.
+    if ! printf '%s\n' "$gate" | grep -qiE 'unrecognised|unrecognized'; then
+      fail "$ORCHESTRATOR's $GATE_HEADING defines no behaviour for an unrecognised token; off the vocabulary's edge the orchestrator would be free to guess"
+    fi
+
+    if ! printf '%s\n' "$gate" | grep -iE 'unrecognised|unrecognized' | grep -qiE 'launch no phase|launches no phase|never a sentence|report'; then
+      fail "$ORCHESTRATOR's $GATE_HEADING names an unrecognised token without saying it is reported and no phase launched; naming the case is not handling it"
+    fi
+
+    # The prohibition cites its definition site instead of becoming a second definition of it.
+    if ! printf '%s\n' "$gate" | grep -F "$routing_rule" | grep -qF '§3'; then
+      fail "$ORCHESTRATOR states the routing rule without citing §3 on the same line; a reader cannot reach the closed vocabulary the rule is about"
+    fi
+  fi
+fi
+
 # A25 — cycle state is reconstructed, never recalled, and the prose the orchestrator used to
 # hold in its own context window is gone.
 if [ -z "$cycle" ]; then
