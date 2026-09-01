@@ -1310,7 +1310,7 @@ PLUGIN_MANIFEST=.claude-plugin/plugin.json
 MARKETPLACE_MANIFEST=.claude-plugin/marketplace.json
 # The only expectation in this script that is not extracted from the tree, because no file can be
 # its own source of truth for the number it is being bumped to. It moves with the next release.
-TARGET_VERSION=1.3.0
+TARGET_VERSION=1.4.0
 
 for f in "$PLUGIN_MANIFEST" "$MARKETPLACE_MANIFEST"; do
   if [ ! -f "$f" ]; then
