@@ -298,6 +298,67 @@ else
   done
 fi
 
+# L14 — one decision menu, defined once in §9, restated only where a user is actually shown the
+# choice, and cited everywhere else. Four sites, and the fourth is the one that gets forgotten:
+# three agreeing menus plus a fourth statement that omits an option is the partial fix that reads
+# as complete. Each of the four extractions carries its own emptiness guard and its own message,
+# so a moved anchor at one site never silences the comparison at another.
+# The matched string is a MENU, not a status set — `fix` and `leave open` set no status by
+# themselves and `defer` records `deferred` — so the one status value in it is `wont-fix`. The
+# comparison runs against the joined, squeezed bullet, which is what makes a meaning-preserving
+# reflow at any site legal while a dropped option is not.
+menu_options='fix / wont-fix / defer / leave open'
+
+# (a) the definition site, and the two sites that restate it
+menu="$(printf '%s\n' "$sec9" | bullet_body 'decision menu' || true)"
+
+if [ -z "$menu" ]; then
+  fail "§9 carries no bullet naming a \"decision menu\"; the menu has no definition site, so the sites that state it and the site that cites it resolve to nothing"
+elif ! printf '%s\n' "$menu" | grep -qF "$menu_options"; then
+  fail "§9's decision-menu bullet does not state the options \"$menu_options\"; the definition site has to carry the set the other three sites resolve to"
+fi
+
+gate_step="$(awk '/^5\. \*\*USER GATE/ { f = 1 } f && /^[0-9]+\. / && !/^5\. / { exit } f' "$REVIEW_SKILL" | tr '\n' ' ' | tr -s ' ' || true)"
+
+if [ -z "$gate_step" ]; then
+  fail "$REVIEW_SKILL has no numbered step opening \"5. **USER GATE\"; the step where the user is shown the menu moved and L14 has nothing to read"
+elif ! printf '%s\n' "$gate_step" | grep -qF "$menu_options"; then
+  fail "$REVIEW_SKILL's USER GATE step does not offer \"$menu_options\"; the place a user is actually asked presents a different option set from §9"
+fi
+
+orch_bullet="$(bullet_body 'OPEN-FINDINGS' < "$ORCHESTRATOR" || true)"
+
+if [ -z "$orch_bullet" ]; then
+  fail "$ORCHESTRATOR carries no \`REVIEW: OPEN-FINDINGS\` outcome bullet; the menu's second restating site moved, and L14 and L15 both read it"
+elif ! printf '%s\n' "$orch_bullet" | grep -qF "$menu_options"; then
+  fail "$ORCHESTRATOR's OPEN-FINDINGS bullet does not offer \"$menu_options\"; the router presents the user a different option set from §9"
+fi
+
+# (b) the one citing site. §7 is Judgment-Day-scoped and has no reason to hold the menu inline, so
+# it cites §9 rather than restating it. Both halves are needed: the citation alone would allow the
+# options to stay beside it, and the negative alone would allow a bare rule citing nothing.
+jd_bullet="$(printf '%s\n' "$sec7" | bullet_body 'resolve only by user decision' || true)"
+
+if [ -z "$jd_bullet" ]; then
+  fail "§7 carries no bullet stating that suspect and contradiction findings \"resolve only by user decision\"; the rule that hands those rows to the user's menu moved"
+else
+  if ! printf '%s\n' "$jd_bullet" | grep -qF '§9'; then
+    fail "§7's user-decision bullet does not cite §9; a rule that names no definition site is read as one, and this is the site that gets left behind when the menu changes"
+  fi
+  if printf '%s\n' "$jd_bullet" | grep -qF 'wont-fix'; then
+    fail "§7's user-decision bullet enumerates options of its own (it names \`wont-fix\`); that makes it a fourth statement of the menu, and a fourth statement is what silently omits an option"
+  fi
+fi
+
+# L15 — NEGATIVE: `proceed` is retired as a row-level outcome. It meant advancing past the gate
+# with rows still open, which §11 refuses, so the router was offering a choice the archive gate
+# would reject. Scope is load-bearing and the negative is NEVER file-wide: elsewhere in this file
+# "proceed to Phase 5" is correct prose, and §9's own menu bullet mentions `proceed` in negated
+# form. Both must survive, so the assertion reads the OPEN-FINDINGS bullet and nothing else.
+if [ -n "$orch_bullet" ] && printf '%s\n' "$orch_bullet" | grep -qF 'proceed'; then
+  fail "$ORCHESTRATOR's OPEN-FINDINGS bullet still offers \`proceed\`; §11 refuses a ledger with open severe rows, so that option has no legal outcome and \`defer\` is what it was reaching for"
+fi
+
 # L16 — ledger finding L-014. Step 0 cites two different contracts, so a sub-agent that cannot open
 # either resolves a bare "contract §11" by guessing, and both mis-resolutions read plausible. Every
 # § citation in the section must name the file it means. Citations are compared per LOGICAL UNIT —
