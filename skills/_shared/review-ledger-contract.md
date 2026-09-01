@@ -116,8 +116,14 @@ fixed → open       (scoped re-review rejected the fix)
   NEVER sets deferred on its own; only the user authorizes it and the
   coordinator records it.
 - `info` is terminal: assigned once to WARNING/SUGGESTION rows, never revisited.
-- `verified`, `refuted`, and evidenced `wont-fix` are the only closed states
-  for BLOCKER/CRITICAL rows.
+- `verified`, `refuted`, evidenced `wont-fix` and evidenced `deferred` are the
+  only CLOSED states for BLOCKER/CRITICAL rows, and that set is exactly the
+  archive pass set of §11.
+- The TERMINAL states are those four plus `info`: a terminal row is resolved and
+  never revisited. Terminal is the union, closed is the BLOCKER/CRITICAL gate
+  set, and severity-floor rows are the only members of the first that are not
+  members of the second. A consumer asking §9 for the terminal states gets
+  these five.
 
 ## 10. Persistence Mapping
 
