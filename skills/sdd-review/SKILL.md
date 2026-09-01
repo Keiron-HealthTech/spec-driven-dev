@@ -281,6 +281,11 @@ Routing (tokens per §3):
 | `CLEAN` / `RESOLVED` | `next_recommended: verify` — change-bound only; ad-hoc reviews end here and return no token |
 | `OPEN-FINDINGS` / `ESCALATED` | `next_recommended: resolve-review` — the user decides; the orchestrator MUST NOT auto-proceed to verify |
 
+A ledger whose BLOCKER/CRITICAL rows are all closed, including any closed by a
+deferred user decision, is RESOLVED and routes as RESOLVED above. Deferring a
+severe finding to a named destination resolves it for this cycle; the change
+archives with that finding unfixed, by design (contract §11).
+
 ## Rules
 
 - The coordinator is the ONLY ledger writer — agents emit rows in their replies and never persist anything.
