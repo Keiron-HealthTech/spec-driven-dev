@@ -98,6 +98,7 @@ Report a finding only if it is a real, user-impacting defect you would defend wi
 open  → refuted    (adversarial verification killed it)
 open  → fixed      (jd-fix-agent applied a fix; the coordinator records it)
 open  → wont-fix   (user decision only)
+open  → deferred   (user decision only; routed to a named destination)
 fixed → verified   (scoped re-review confirmed the fix)
 fixed → open       (scoped re-review rejected the fix)
 ```
