@@ -27,7 +27,7 @@ date, and round. Finding rows follow this table:
 - `lens` — originating lens or judge.
 - `location` — `path:line`.
 - `severity` — one of `BLOCKER | CRITICAL | WARNING | SUGGESTION`.
-- `status` — one of `open | fixed | verified | refuted | wont-fix | info`.
+- `status` — one of `open | fixed | verified | refuted | wont-fix | deferred | info`.
 - `evidence` — concrete evidence for the finding.
 - `verification` — adversarial outcome: `refuter:corroborated|refuted|inconclusive`, `jd:both|a-only|b-only|contradiction`, or `—` (pre-verification / info rows).
 
@@ -128,10 +128,12 @@ decision and lenses run (mode `none`: reported inline instead).
 
 `sdd-archive` (Step 0) enforces this rule over the persisted ledger:
 
-- BLOCK archive while any BLOCKER or CRITICAL row has a status other than
-  `verified`, `refuted`, or `wont-fix`. `open` rows, un-reverified `fixed`
-  rows, and JD suspect rows all mean the review loop did not converge — the
-  user must decide, never the agent.
+- The archive pass set is exactly the CLOSED states of §9: `verified`,
+  `refuted`, evidenced `wont-fix` and evidenced `deferred`.
+- BLOCK archive while any BLOCKER or CRITICAL row has a status outside that
+  pass set. `open` rows, un-reverified `fixed` rows, and JD suspect rows all
+  mean the review loop did not converge — the user must decide, never the
+  agent.
 - `wont-fix` counts as closed ONLY with the recorded explicit user decision
   in the §9 evidence form.
 - If no ledger exists for the change, warn that the change was implemented
