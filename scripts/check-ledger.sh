@@ -424,9 +424,18 @@ fi
 # The matched shape is a slash-separated run of lowercase options, so the separator convention is
 # what makes the set findable while the set is what is asserted — and because every site's text is
 # joined and squeezed first, a meaning-preserving reflow at any of them stays legal.
-menu_set() { # joined, squeezed text on stdin — one option per line, sorted
-  grep -oE '[a-z][a-z -]*( / [a-z][a-z -]*)+' |
-    head -1 |
+#
+# Finding the runs is split from choosing one so the runs can be counted before one of them answers
+# for the rest. `grep -o` prints EVERY run in the joined text and only the first survives, so a
+# second run is not unioned into the set — it is discarded unread, and a commentary run written
+# ABOVE the normative menu is what every comparison then reads. Selecting silently is the same
+# defect as unioning silently, which is why each call site below guards the run count.
+menu_runs() { # joined, squeezed text on stdin — one slash-separated option run per line
+  grep -oE '[a-z][a-z -]*( / [a-z][a-z -]*)+'
+}
+
+menu_set() { # option runs on stdin, one per line — the options of the FIRST run, sorted
+  head -1 |
     tr '/' '\n' |
     sed -E 's/^ +//; s/ +$//' |
     grep -E '^[a-z][a-z -]*$' |
@@ -446,7 +455,9 @@ menu_agree() { # site set on $1, site description on $2
 # (a) the definition site, and the two sites that restate it
 menu="$(printf '%s\n' "$sec9" | bullet_body 'decision menu' || true)"
 menu_n="$(unit_count "$menu")"
-menu9="$(printf '%s\n' "$menu" | menu_set || true)"
+menu9_runs="$(printf '%s\n' "$menu" | menu_runs || true)"
+menu9_runs_n="$(unit_count "$menu9_runs")"
+menu9="$(printf '%s\n' "$menu9_runs" | menu_set || true)"
 menu9_count="$(unit_count "$menu9")"
 menu9_list="$(printf '%s' "$menu9" | awk '{ printf "%s%s", (NR > 1 ? ", " : ""), $0 } END { print "" }')"
 
@@ -454,6 +465,9 @@ if [ "$menu_n" -eq 0 ]; then
   fail "§9 carries no bullet naming a \"decision menu\"; the menu has no definition site, so the sites that state it and the site that cites it resolve to nothing"
 elif [ "$menu_n" -gt 1 ]; then
   fail "§9 carries $menu_n bullets naming a \"decision menu\", expected exactly 1; $MULTI_TAIL. A menu with two definition sites is the drift this clause exists to refuse"
+elif [ "$menu9_runs_n" -gt 1 ]; then
+  fail "§9's decision-menu bullet carries $menu9_runs_n slash-separated option runs, expected exactly 1; the first is selected and the rest discarded unread, so a commentary run would become the set both restating sites are compared against"
+  menu9_count=0
 elif [ "$menu9_count" -lt 3 ]; then
   fail "§9's decision-menu bullet yielded $menu9_count options, below the floor of 3; the slash-separated option run moved or reflowed, so the definition site states no set for the restating sites to be compared against"
   menu9_count=0
@@ -465,12 +479,23 @@ elif ! member defer "$menu9"; then
   fail "§9's decision-menu bullet does not offer \`defer\` (extracted: $menu9_list); the option that routes a severe finding to a destination is what the deferred state exists to give the user, and three sites agreeing it is gone is still three sites agreeing on the wrong menu"
 fi
 
+# The step-5 scope ends at the next numbered step, never at a second `5. **USER GATE` opening, so
+# the openings joined into it are counted too: this is the one extraction here whose unit is a whole
+# numbered step rather than a bullet, and two steps read as one is the same absorption.
 gate_step="$(awk '/^5\. \*\*USER GATE/ { f = 1 } f && /^[0-9]+\. / && !/^5\. / { exit } f' "$REVIEW_SKILL" | tr '\n' ' ' | tr -s ' ' || true)"
-gate_menu="$(printf '%s\n' "$gate_step" | menu_set || true)"
+gate_opens="$(printf '%s\n' "$gate_step" | grep -oF '5. **USER GATE' || true)"
+gate_opens_n="$(unit_count "$gate_opens")"
+gate_runs="$(printf '%s\n' "$gate_step" | menu_runs || true)"
+gate_runs_n="$(unit_count "$gate_runs")"
+gate_menu="$(printf '%s\n' "$gate_runs" | menu_set || true)"
 gate_menu_count="$(unit_count "$gate_menu")"
 
 if [ -z "$gate_step" ]; then
   fail "$REVIEW_SKILL has no numbered step opening \"5. **USER GATE\"; the step where the user is shown the menu moved and L14 has nothing to read"
+elif [ "$gate_opens_n" -gt 1 ]; then
+  fail "$REVIEW_SKILL's step-5 scope joins $gate_opens_n \"5. **USER GATE\" openings, expected exactly 1; $MULTI_TAIL, and the scope ends at the next numbered step rather than at the second opening"
+elif [ "$gate_runs_n" -gt 1 ]; then
+  fail "$REVIEW_SKILL's USER GATE step carries $gate_runs_n slash-separated option runs, expected exactly 1; the first is selected and the rest discarded unread, so the place a user is actually asked can stop offering an option while a run above it answers for the menu"
 elif [ "$gate_menu_count" -lt 3 ]; then
   fail "$REVIEW_SKILL's USER GATE step states $gate_menu_count menu options, below the floor of 3; the place a user is actually asked no longer presents a slash-separated option set, so nothing there can be compared with §9's ($menu9_list)"
 elif [ "$menu9_count" -ge 3 ]; then
@@ -479,13 +504,17 @@ fi
 
 orch_bullet="$(bullet_body 'OPEN-FINDINGS' < "$ORCHESTRATOR" || true)"
 orch_bullet_n="$(unit_count "$orch_bullet")"
-orch_menu="$(printf '%s\n' "$orch_bullet" | menu_set || true)"
+orch_runs="$(printf '%s\n' "$orch_bullet" | menu_runs || true)"
+orch_runs_n="$(unit_count "$orch_runs")"
+orch_menu="$(printf '%s\n' "$orch_runs" | menu_set || true)"
 orch_menu_count="$(unit_count "$orch_menu")"
 
 if [ "$orch_bullet_n" -eq 0 ]; then
   fail "$ORCHESTRATOR carries no \`REVIEW: OPEN-FINDINGS\` outcome bullet; the menu's second restating site moved, and L14 and L15 both read it"
 elif [ "$orch_bullet_n" -gt 1 ]; then
   fail "$ORCHESTRATOR carries $orch_bullet_n bullets matching \"OPEN-FINDINGS\", expected exactly 1; $MULTI_TAIL. L15's negative would then be satisfied by whichever bullet omits \`proceed\`"
+elif [ "$orch_runs_n" -gt 1 ]; then
+  fail "$ORCHESTRATOR's OPEN-FINDINGS bullet carries $orch_runs_n slash-separated option runs, expected exactly 1; the first is selected and the rest discarded unread, so the router can stop offering an option while a run beside it answers for the menu"
 elif [ "$orch_menu_count" -lt 3 ]; then
   fail "$ORCHESTRATOR's OPEN-FINDINGS bullet states $orch_menu_count menu options, below the floor of 3; the router no longer presents a slash-separated option set, so nothing there can be compared with §9's ($menu9_list)"
 elif [ "$menu9_count" -ge 3 ]; then
