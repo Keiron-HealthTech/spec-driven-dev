@@ -70,6 +70,9 @@ sec11="$(section "$LEDGER" 11)"
 # L1 — vacuity guard. The floor is a floor, not a count: an eighth status value added later is
 # legal, and an exact count would be a second copy of the enum's size. Reported immediately
 # because every clause below reads $enum.
+# The two anchors are the `## 2.` section NUMBER and the '`status` — one of' lead-in. The
+# heading's title is not one of them: retitling the section leaves the extraction intact,
+# renumbering it empties the extraction.
 enum="$(
   printf '%s\n' "$sec2" |
     grep -F '`status` — one of' |
@@ -83,7 +86,7 @@ enum_count="$(printf '%s' "$enum" | grep -c . || true)"
 enum_list="$(printf '%s' "$enum" | tr '\n' ' ' | sed 's/ *$//')"
 
 if [ "$enum_count" -lt 6 ]; then
-  fail "§2's status enum extraction yielded $enum_count values, below the floor of 6; the \"## 2. Ledger Schema\" heading or its \`status\` bullet moved, and every clause below would read an empty set and pass vacuously"
+  fail "§2's status enum extraction yielded $enum_count values, below the floor of 6; the \`## 2.\` section number or the \"\`status\` — one of\" lead-in moved, and every clause below would read an empty set and pass vacuously"
   report
 fi
 
