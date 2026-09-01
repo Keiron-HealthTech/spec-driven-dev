@@ -291,5 +291,5 @@ archives with that finding unfixed, by design (contract §11).
 - The coordinator is the ONLY ledger writer — agents emit rows in their replies and never persist anything.
 - The ledger schema, precision gate, severity floor, refutation ceilings, and fix-round budget are canonical in `skills/_shared/review-ledger-contract.md` — cite its sections, never redefine its numbers. Triage thresholds (the line budget) live in THIS skill only.
 - ALWAYS persist the ledger, including when it is empty (mode `none`: report it inline).
-- NEVER dispatch the fix agent for `suspect` or `info` rows, and NEVER set `wont-fix` without the user's explicit decision recorded per contract §9.
+- NEVER dispatch the fix agent for `suspect`, `info` or `deferred` rows, and NEVER set `wont-fix` or `deferred` without the user's explicit decision recorded per contract §9.
 - ALWAYS stop at the USER GATE before the first fix round — findings are fixed only with user approval.
