@@ -214,6 +214,119 @@ if [ "$pass11_count" -ge 3 ] && [ -n "$arch_set" ]; then
   fi
 fi
 
+# L9 — sdd-review's `REVIEW: RESOLVED` row is the second mirror of §11, and CI asserts the two
+# set-equal. Line-scoping is legitimate here and only here: a markdown table row is one line by
+# construction, so no reflow can split it. The MIRROR label makes the row findable; the set
+# comparison is the assertion, so a reworded label empties the extraction and hits the guard
+# rather than turning the clause green.
+rev_set="$(grep -F 'REVIEW: RESOLVED' "$REVIEW_SKILL" | grep -F 'MIRROR' | tokens || true)"
+
+if [ -z "$rev_set" ]; then
+  fail "$REVIEW_SKILL carries no MIRROR-labelled \`REVIEW: RESOLVED\` row; the second copy of the pass set is unasserted, and defending one copy while stranding the other is the partial fix that reads as complete"
+fi
+
+if [ "$pass11_count" -ge 3 ] && [ -n "$rev_set" ]; then
+  only_11_rev="$(comm -23 <(printf '%s\n' "$pass11") <(printf '%s\n' "$rev_set") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
+  only_rev="$(comm -13 <(printf '%s\n' "$pass11") <(printf '%s\n' "$rev_set") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
+
+  if [ -n "$only_11_rev" ] || [ -n "$only_rev" ]; then
+    fail "pass-set drift between §11 and $REVIEW_SKILL's \`REVIEW: RESOLVED\` row: only in §11: ${only_11_rev:-none}; only in the mirror: ${only_rev:-none}"
+  fi
+
+  if ! grep -F 'REVIEW: RESOLVED' "$REVIEW_SKILL" | grep -F 'MIRROR' | grep -qF '§11'; then
+    fail "$REVIEW_SKILL's \`REVIEW: RESOLVED\` row is labelled a MIRROR without citing §11; the section it mirrors has to be named for a reader to resolve the copy"
+  fi
+fi
+
+# L10 — the audited dead end. A deferred row is never cleared inside the change that defers it, so
+# the archive report IS the entire record that the obligation exists: Step 0 has to list those rows
+# and the report template has to carry a field for them. `**Deferred rows**` is a template field,
+# not prose — a paragraph about auditing deferrals cannot produce it.
+audit_bullet="$(printf '%s\n' "$step0" | bullet_body 'Audit trail' || true)"
+template_field="$(grep -F '**Deferred rows**' "$ARCHIVE_SKILL" || true)"
+
+if [ -z "$audit_bullet" ]; then
+  fail "$ARCHIVE_SKILL Step 0 carries no \"Audit trail\" bullet; the rows the gate lets through unfixed would leave no trail at all"
+elif ! printf '%s\n' "$audit_bullet" | grep -qF 'deferred'; then
+  fail "$ARCHIVE_SKILL Step 0's audit-trail bullet does not list \`deferred\` rows; a closed state with no audit trail is a finding that disappears"
+fi
+
+if [ -z "$template_field" ]; then
+  fail "$ARCHIVE_SKILL's archive-report template carries no \`**Deferred rows**\` field; the audit-trail rule has nowhere to be written down, and nothing in v1.4.0 clears a deferred row later"
+fi
+
+if ! printf '%s\n%s\n' "$audit_bullet" "$template_field" | grep -qF 'destination'; then
+  fail "neither $ARCHIVE_SKILL Step 0's audit-trail bullet nor its \`**Deferred rows**\` template field names the destination; a trail recording that work was deferred but not where it went is not a trail"
+fi
+
+# L12 — the report's own counters. Every closed state the gate accepts has to be countable in the
+# review report, plus `open`. SUPERSET and not equality on purpose: the line legitimately also
+# counts `open`, and its omission of `fixed` — never a closed state — stays legal, because forcing
+# `fixed` in would smuggle an unrelated behaviour change into this one. The anchor is the Return
+# template's field label, the thing the coordinator fills in rather than an explanation of it.
+buckets="$(grep -F '**Findings**:' "$REVIEW_SKILL" || true)"
+
+if [ -z "$buckets" ]; then
+  fail "$REVIEW_SKILL has no \`**Findings**:\` bucket line; the review report has no counters for the pass set to be compared against"
+elif [ "$pass11_count" -ge 3 ]; then
+  while IFS= read -r bucket_value; do
+    if [ -z "$bucket_value" ]; then
+      continue
+    fi
+    if ! printf '%s\n' "$buckets" | grep -qF "$bucket_value"; then
+      fail "$REVIEW_SKILL's \`**Findings**:\` line does not count \`$bucket_value\`; a status the archive gate accepts that the report never counts is a row the user never sees"
+    fi
+  done <<EOF
+$pass11
+open
+EOF
+fi
+
+# L13 — the user-facing surface. The honest limit is stated here rather than assumed: this is a
+# documentation-PRESENCE clause, never a correctness one, and a wrong paraphrase passes it. The
+# README is deliberately not a second definition site — asserting set equality here would create a
+# further copy of the pass set in the one file the project has kept free of canon.
+readme_body="$(awk '$0 == "## Review Workflow" { f = 1; next } f && /^## / { exit } f' "$README" || true)"
+
+if [ -z "$readme_body" ]; then
+  fail "$README has no \"## Review Workflow\" section; the user-facing description of the review system moved and L13 has nothing to read"
+else
+  for literal in deferred destination; do
+    if ! printf '%s\n' "$readme_body" | grep -qF "$literal"; then
+      fail "$README's Review Workflow section never mentions \"$literal\"; a user reading only the README cannot learn that routing a severe finding elsewhere is expressible"
+    fi
+  done
+fi
+
+# L16 — ledger finding L-014. Step 0 cites two different contracts, so a sub-agent that cannot open
+# either resolves a bare "contract §11" by guessing, and both mis-resolutions read plausible. Every
+# § citation in the section must name the file it means. Citations are compared per LOGICAL UNIT —
+# a line joined with its indented continuations — so a wrapped filename does not turn CI red;
+# pinning two halves of one statement to a single physical line is the idiom A32 corrected.
+step0_units="$(
+  printf '%s\n' "$step0" |
+    awk '
+      function flush() { if (buf != "") print buf; buf = "" }
+      /^[[:space:]]*$/ { flush(); next }
+      /^[[:space:]]/ && buf != "" { buf = buf " " $0; next }
+      { flush(); buf = $0 }
+      END { flush() }
+    ' |
+    tr -s " " || true
+)"
+step0_cites="$(printf '%s\n' "$step0_units" | grep -F '§' || true)"
+
+while IFS= read -r cite_unit; do
+  if [ -z "$cite_unit" ]; then
+    continue
+  fi
+  if ! printf '%s\n' "$cite_unit" | grep -qF 'review-ledger-contract.md'; then
+    fail "$ARCHIVE_SKILL Step 0 cites a § without naming the contract it means: \"$cite_unit\""
+  fi
+done <<EOF
+$step0_cites
+EOF
+
 # L17 — the cross-canon join. sdd-status-contract.md §5 asks §9 for the end states under one
 # word and restates nothing, so the citation graph runs one way: status → review. This clause
 # reads that word out of the status canon and asserts §9 still defines a set under it. Renaming
@@ -240,4 +353,4 @@ fi
 
 report
 
-echo "check-ledger: OK — ledger canon complete, $enum_count status values extracted, pass set agrees across §9, §11 and the sdd-archive mirror"
+echo "check-ledger: OK — ledger canon complete, $enum_count status values extracted, pass set agrees across §9, §11 and both mirrors"
