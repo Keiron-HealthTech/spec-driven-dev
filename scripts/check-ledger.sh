@@ -336,43 +336,81 @@ fi
 # L14 — one decision menu, defined once in §9, restated only where a user is actually shown the
 # choice, and cited everywhere else. Four sites, and the fourth is the one that gets forgotten:
 # three agreeing menus plus a fourth statement that omits an option is the partial fix that reads
-# as complete. Each of the four extractions carries its own emptiness guard and its own message,
-# so a moved anchor at one site never silences the comparison at another.
-# The matched string is a MENU, not a status set — `fix` and `leave open` set no status by
-# themselves and `defer` records `deferred` — so the one status value in it is `wont-fix`. The
-# comparison runs against the joined, squeezed bullet, which is what makes a meaning-preserving
-# reflow at any site legal while a dropped option is not.
-menu_options='fix / wont-fix / defer / leave open'
+# as complete. Each of the four extractions carries its own emptiness and multiplicity guard and
+# its own message, so a moved anchor at one site never silences the comparison at another.
+#
+# The three restating sites are compared to §9 by SET EQUALITY in both directions, the way L7, L8
+# and L9 compare the pass set. A literal containment test — which this clause used to be — is
+# stricter than the canon on order and separators, where the canon is silent, and weaker than it on
+# supersets, where the canon is not: `fix / wont-fix / defer / leave open / proceed` contains the
+# literal and would pass, at the one site where a user is actually shown the choice, offering back
+# the option §11 refuses and this change retired. Membership is the property; ordering is not.
+# Nothing here enumerates the menu: §9's set is extracted at run time and is the only reference, so
+# the checker holds no second copy of a list the canon owns.
+#
+# The matched shape is a slash-separated run of lowercase options, so the separator convention is
+# what makes the set findable while the set is what is asserted — and because every site's text is
+# joined and squeezed first, a meaning-preserving reflow at any of them stays legal.
+menu_set() { # joined, squeezed text on stdin — one option per line, sorted
+  grep -oE '[a-z][a-z -]*( / [a-z][a-z -]*)+' |
+    head -1 |
+    tr '/' '\n' |
+    sed -E 's/^ +//; s/ +$//' |
+    grep -E '^[a-z][a-z -]*$' |
+    sort -u
+}
+
+# Both directions, per restating site: an option dropped at a site and an option added at a site are
+# opposite failures of the same agreement, and only the first is visible to a containment test.
+menu_agree() { # site set on $1, site description on $2
+  only_menu9="$(comm -23 <(printf '%s\n' "$menu9") <(printf '%s\n' "$1") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
+  only_site="$(comm -13 <(printf '%s\n' "$menu9") <(printf '%s\n' "$1") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
+  if [ -n "$only_menu9" ] || [ -n "$only_site" ]; then
+    fail "decision-menu drift between §9 and $2: only in §9: ${only_menu9:-none}; only at that site: ${only_site:-none}"
+  fi
+}
 
 # (a) the definition site, and the two sites that restate it
 menu="$(printf '%s\n' "$sec9" | bullet_body 'decision menu' || true)"
 menu_n="$(unit_count "$menu")"
+menu9="$(printf '%s\n' "$menu" | menu_set || true)"
+menu9_count="$(unit_count "$menu9")"
+menu9_list="$(printf '%s' "$menu9" | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
 
 if [ "$menu_n" -eq 0 ]; then
   fail "§9 carries no bullet naming a \"decision menu\"; the menu has no definition site, so the sites that state it and the site that cites it resolve to nothing"
 elif [ "$menu_n" -gt 1 ]; then
   fail "§9 carries $menu_n bullets naming a \"decision menu\", expected exactly 1; $MULTI_TAIL. A menu with two definition sites is the drift this clause exists to refuse"
-elif ! printf '%s\n' "$menu" | grep -qF "$menu_options"; then
-  fail "§9's decision-menu bullet does not state the options \"$menu_options\"; the definition site has to carry the set the other three sites resolve to"
+elif [ "$menu9_count" -lt 3 ]; then
+  fail "§9's decision-menu bullet yielded $menu9_count options, below the floor of 3; the slash-separated option run moved or reflowed, so the definition site states no set for the restating sites to be compared against"
+  menu9_count=0
 fi
 
 gate_step="$(awk '/^5\. \*\*USER GATE/ { f = 1 } f && /^[0-9]+\. / && !/^5\. / { exit } f' "$REVIEW_SKILL" | tr '\n' ' ' | tr -s ' ' || true)"
+gate_menu="$(printf '%s\n' "$gate_step" | menu_set || true)"
+gate_menu_count="$(unit_count "$gate_menu")"
 
 if [ -z "$gate_step" ]; then
   fail "$REVIEW_SKILL has no numbered step opening \"5. **USER GATE\"; the step where the user is shown the menu moved and L14 has nothing to read"
-elif ! printf '%s\n' "$gate_step" | grep -qF "$menu_options"; then
-  fail "$REVIEW_SKILL's USER GATE step does not offer \"$menu_options\"; the place a user is actually asked presents a different option set from §9"
+elif [ "$gate_menu_count" -lt 3 ]; then
+  fail "$REVIEW_SKILL's USER GATE step states $gate_menu_count menu options, below the floor of 3; the place a user is actually asked no longer presents a slash-separated option set, so nothing there can be compared with §9's ($menu9_list)"
+elif [ "$menu9_count" -ge 3 ]; then
+  menu_agree "$gate_menu" "$REVIEW_SKILL's USER GATE step, the place a user is actually asked"
 fi
 
 orch_bullet="$(bullet_body 'OPEN-FINDINGS' < "$ORCHESTRATOR" || true)"
 orch_bullet_n="$(unit_count "$orch_bullet")"
+orch_menu="$(printf '%s\n' "$orch_bullet" | menu_set || true)"
+orch_menu_count="$(unit_count "$orch_menu")"
 
 if [ "$orch_bullet_n" -eq 0 ]; then
   fail "$ORCHESTRATOR carries no \`REVIEW: OPEN-FINDINGS\` outcome bullet; the menu's second restating site moved, and L14 and L15 both read it"
 elif [ "$orch_bullet_n" -gt 1 ]; then
   fail "$ORCHESTRATOR carries $orch_bullet_n bullets matching \"OPEN-FINDINGS\", expected exactly 1; $MULTI_TAIL. L15's negative would then be satisfied by whichever bullet omits \`proceed\`"
-elif ! printf '%s\n' "$orch_bullet" | grep -qF "$menu_options"; then
-  fail "$ORCHESTRATOR's OPEN-FINDINGS bullet does not offer \"$menu_options\"; the router presents the user a different option set from §9"
+elif [ "$orch_menu_count" -lt 3 ]; then
+  fail "$ORCHESTRATOR's OPEN-FINDINGS bullet states $orch_menu_count menu options, below the floor of 3; the router no longer presents a slash-separated option set, so nothing there can be compared with §9's ($menu9_list)"
+elif [ "$menu9_count" -ge 3 ]; then
+  menu_agree "$orch_menu" "$ORCHESTRATOR's OPEN-FINDINGS bullet, where the router presents the choice"
 fi
 
 # (b) the one citing site. §7 is Judgment-Day-scoped and has no reason to hold the menu inline, so
