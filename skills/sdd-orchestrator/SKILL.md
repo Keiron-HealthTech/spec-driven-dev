@@ -187,7 +187,7 @@ select zero lenses — invoke it regardless; the empty ledger is still persisted
 
 Outcome routing:
 - `REVIEW: CLEAN` or `REVIEW: RESOLVED` → proceed to Phase 5.
-- `REVIEW: OPEN-FINDINGS` or `REVIEW: ESCALATED` → present the ledger rows to the user and STOP — the user decides fix / wont-fix / proceed.
+- `REVIEW: OPEN-FINDINGS` or `REVIEW: ESCALATED` → present the ledger rows to the user and STOP — the user decides per the decision menu of `skills/_shared/review-ledger-contract.md` §9: fix / wont-fix / defer / leave open.
 
 ### Phase 5: Verification
 
