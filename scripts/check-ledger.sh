@@ -328,10 +328,17 @@ done <<EOF
 $floor_hits
 EOF
 
+# The negative runs first and unconditionally, and the count guard is additive rather than gating.
+# Gated behind an exact count the negative would be unreachable by its own falsifying mutation:
+# ADDING `deferred` to the envelope enum moves the count to 4, so the guard would fire and the
+# membership test — the assertion — would never run. An emptied extraction cannot produce a false
+# accusation here, because `deferred` is not a member of nothing; the guard is what catches that.
+if member deferred "$envelope_enum"; then
+  fail "$STATUS §2's envelope enum carries \`deferred\` (extracted: $envelope_list); a phase envelope reports whether the phase completed and a ledger row reports how a finding was resolved, and one vocabulary leaking into the other is what A6 refuses one shape lower"
+fi
+
 if [ "$envelope_count" -ne 3 ]; then
   fail "$STATUS §2's envelope status enum yielded $envelope_count values, expected exactly 3 ($envelope_list); the status canon moved, and a negative asserted against an extraction that returns nothing passes for the wrong reason"
-elif member deferred "$envelope_enum"; then
-  fail "$STATUS §2's envelope enum carries \`deferred\` (extracted: $envelope_list); a phase envelope reports whether the phase completed and a ledger row reports how a finding was resolved, and one vocabulary leaking into the other is what A6 refuses one shape lower"
 fi
 
 # L12 — the report's own counters. Every closed state the gate accepts has to be countable in the
