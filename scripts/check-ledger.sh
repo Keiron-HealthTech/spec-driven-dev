@@ -91,9 +91,14 @@ status5="$(section "$STATUS" 5)"
 # The two anchors are the `## 2.` section NUMBER and the '`status` — one of' lead-in. The
 # heading's title is not one of them: retitling the section leaves the extraction intact,
 # renumbering it empties the extraction.
+# The lead-in is matched per line and the values are unioned, so the multiplicity guard below is
+# what keeps the extraction sound: a second lead-in line inside §2 would put values in $enum that
+# the schema bullet no longer declares. L20 is not that defence — its first half counts FILES and
+# its second excludes $LEDGER, so both halves are blind to a second lead-in inside the canon.
+enum_lead="$(printf '%s\n' "$sec2" | grep -F '`status` — one of' || true)"
+enum_lead_n="$(unit_count "$enum_lead")"
 enum="$(
-  printf '%s\n' "$sec2" |
-    grep -F '`status` — one of' |
+  printf '%s\n' "$enum_lead" |
     sed -E 's/.*one of `([^`]*)`.*/\1/' |
     tr '|' '\n' |
     tr -d ' ' |
@@ -102,6 +107,11 @@ enum="$(
 )"
 enum_count="$(printf '%s' "$enum" | grep -c . || true)"
 enum_list="$(printf '%s' "$enum" | tr '\n' ' ' | sed 's/ *$//')"
+
+if [ "$enum_lead_n" -gt 1 ]; then
+  fail "§2 carries $enum_lead_n lines matching \"\`status\` — one of\", expected exactly 1; $MULTI_TAIL. The values are unioned across matching lines, so the schema bullet can stop declaring a status while \$enum still reports it — and \$enum is the set L1's floor, L2's membership half and L2's subset half all read"
+  report
+fi
 
 if [ "$enum_count" -lt 6 ]; then
   fail "§2's status enum extraction yielded $enum_count values, below the floor of 6; the \`## 2.\` section number or the \"\`status\` — one of\" lead-in moved, and every clause below would read an empty set and pass vacuously"
