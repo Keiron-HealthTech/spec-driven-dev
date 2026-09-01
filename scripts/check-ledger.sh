@@ -65,7 +65,11 @@ if [ ! -f "$LEDGER" ]; then
 fi
 
 sec2="$(section "$LEDGER" 2)"
+sec5="$(section "$LEDGER" 5)"
+sec7="$(section "$LEDGER" 7)"
+sec9="$(section "$LEDGER" 9)"
 sec11="$(section "$LEDGER" 11)"
+status5="$(section "$STATUS" 5)"
 
 # L1 — vacuity guard. The floor is a floor, not a count: an eighth status value added later is
 # legal, and an exact count would be a second copy of the enum's size. Reported immediately
@@ -96,14 +100,91 @@ if ! member deferred "$enum"; then
   fail "§2's status enum does not carry \`deferred\` (extracted: $enum_list); the schema bullet is the enum's only definition site"
 fi
 
-# L8 — sdd-archive Step 0's pass set is a MIRROR of §11 and CI asserts the two set-equal. The
-# label makes the bullet findable; the set comparison is the assertion.
-pass11="$(printf '%s\n' "$sec11" | bullet_body 'archive pass set' | tokens || true)"
+# L3 — the definition site carries the transition. §2 declares a status; §9's arrow block is
+# where it becomes reachable. The shape is pinned to the start of a line inside the fenced
+# block, which no paragraph about deferring findings can produce.
+arrow_count="$(printf '%s\n' "$sec9" | grep -cE '^open +→ +deferred' || true)"
 
-if [ -z "$pass11" ]; then
-  fail "§11 carries no dedicated \"archive pass set\" bullet; L8 has nothing to compare $ARCHIVE_SKILL's mirror against, and a comparison against an empty side would name every value as drift"
+if [ "$arrow_count" -ne 1 ]; then
+  fail "§9's transition block carries $arrow_count \`open → deferred\` rows, expected exactly 1; a value in §2's enum with no transition in §9 is declared but never defined"
 fi
 
+# L4, L5 and L6 all read one bullet — §9's `deferred` rule — located by its own opening words,
+# so prose elsewhere in the section cannot answer for it.
+deferred_rule="$(printf '%s\n' "$sec9" | bullet_body '`deferred` REQUIRES' || true)"
+
+if [ -z "$deferred_rule" ]; then
+  fail "§9 carries no bullet opening \"\`deferred\` REQUIRES\"; the state has no evidence form, no mandatory destination and no user-only clause for L4, L5 and L6 to read"
+else
+  # L4 — the form is exact. A row can only be checked against a form that is stated literally.
+  for literal in 'user decision' 'YYYY-MM-DD' 'deferred — user decision (YYYY-MM-DD)'; do
+    if ! printf '%s\n' "$deferred_rule" | grep -qF "$literal"; then
+      fail "§9's \`deferred\` evidence form does not carry the literal \"$literal\"; a paraphrase of a form is not a form"
+    fi
+  done
+
+  # L5 — the mandatory destination is the only structural difference from `wont-fix`, so it is
+  # the one thing required rather than recommended. This defends the PRESENCE of that rule and
+  # never its strength: a reword keeping all three words while weakening the rule still passes.
+  for literal in destination MANDATORY tracker-agnostic; do
+    if ! printf '%s\n' "$deferred_rule" | grep -qF "$literal"; then
+      fail "§9's \`deferred\` rule does not carry \"$literal\"; without it the destination is a suggestion and \`deferred\` is \`wont-fix\` under a longer name"
+    fi
+  done
+
+  # L6 — user-only, in the wording `wont-fix` already uses, so drift in one twin shows against
+  # the other.
+  for literal in 'NEVER sets deferred on its own' 'only the user authorizes'; do
+    if ! printf '%s\n' "$deferred_rule" | grep -qF "$literal"; then
+      fail "§9's \`deferred\` rule does not state \"$literal\"; a status an agent may assign itself is not a user decision"
+    fi
+  done
+fi
+
+# L7 — §9 defines the closed states, §11 states the archive pass set, and the two are one set or
+# CI says which value differs. Both sides are token sets computed from the two normative
+# bullets, so no wording can make two different sets equal. The floor of 3 is a floor: it stops
+# an emptied extraction from reaching `comm`, where an empty side names every value as drift.
+closed9="$(printf '%s\n' "$sec9" | bullet_body 'only CLOSED states' | tokens || true)"
+pass11="$(printf '%s\n' "$sec11" | bullet_body 'archive pass set' | tokens || true)"
+closed9_count="$(printf '%s' "$closed9" | grep -c . || true)"
+pass11_count="$(printf '%s' "$pass11" | grep -c . || true)"
+
+if [ "$closed9_count" -lt 3 ]; then
+  fail "§9's closed-state bullet extracted $closed9_count values, below the floor of 3; the bullet naming \"only CLOSED states\" moved or reflowed, so §9 no longer states the set §11 claims to copy"
+fi
+
+if [ "$pass11_count" -lt 3 ]; then
+  fail "§11's \"archive pass set\" bullet extracted $pass11_count values, below the floor of 3; neither §9's closed set nor $ARCHIVE_SKILL's mirror has anything left to be compared against"
+fi
+
+if [ "$closed9_count" -ge 3 ] && [ "$pass11_count" -ge 3 ]; then
+  only_closed9="$(comm -23 <(printf '%s\n' "$closed9") <(printf '%s\n' "$pass11") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
+  only_pass11="$(comm -13 <(printf '%s\n' "$closed9") <(printf '%s\n' "$pass11") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
+
+  if [ -n "$only_closed9" ] || [ -n "$only_pass11" ]; then
+    fail "§9's closed states and §11's archive pass set disagree: only in §9: ${only_closed9:-none}; only in §11: ${only_pass11:-none}"
+  fi
+fi
+
+# L2, second half — every value the archive gate lets through has to be a declared status. The
+# membership half above catches `deferred` dropped from §2 while §9 still names it; this half
+# catches the same drift from the other side, and it needs the pass set, so it sits after L7.
+if [ "$pass11_count" -ge 3 ]; then
+  while IFS= read -r pass_value; do
+    if [ -z "$pass_value" ]; then
+      continue
+    fi
+    if ! member "$pass_value" "$enum"; then
+      fail "§11's archive pass set carries \`$pass_value\`, which is not in §2's status enum (extracted: $enum_list); the gate would pass a status the schema never declared"
+    fi
+  done <<EOF
+$pass11
+EOF
+fi
+
+# L8 — sdd-archive Step 0's pass set is a MIRROR of §11 and CI asserts the two set-equal. The
+# label makes the bullet findable; the set comparison is the assertion.
 step0="$(awk '/^### Step 0/ { f = 1; next } f && /^### / { exit } f' "$ARCHIVE_SKILL")"
 
 if [ -z "$step0" ]; then
@@ -116,7 +197,7 @@ if [ -z "$arch_set" ]; then
   fail "$ARCHIVE_SKILL Step 0 carries no MIRROR-labelled pass-set bullet; L8's set comparison has nothing to read"
 fi
 
-if [ -n "$pass11" ] && [ -n "$arch_set" ]; then
+if [ "$pass11_count" -ge 3 ] && [ -n "$arch_set" ]; then
   only_11="$(comm -23 <(printf '%s\n' "$pass11") <(printf '%s\n' "$arch_set") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
   only_arch="$(comm -13 <(printf '%s\n' "$pass11") <(printf '%s\n' "$arch_set") | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
 
@@ -133,6 +214,30 @@ if [ -n "$pass11" ] && [ -n "$arch_set" ]; then
   fi
 fi
 
+# L17 — the cross-canon join. sdd-status-contract.md §5 asks §9 for the end states under one
+# word and restates nothing, so the citation graph runs one way: status → review. This clause
+# reads that word out of the status canon and asserts §9 still defines a set under it. Renaming
+# §9's union silently reverts the defect where a ledger holding a `verified` row stayed
+# `partial` forever. sdd-status-contract.md takes no edit for this; it is read, never written.
+union_word="$(printf '%s\n' "$status5" | grep -F '| `review-ledger` |' | grep -F 'review-ledger-contract.md' | sed -nE 's/.*not in an? ([a-z-]+) state.*/\1/p' || true)"
+union_word_count="$(printf '%s' "$union_word" | grep -c . || true)"
+
+if [ "$union_word_count" -ne 1 ]; then
+  fail "$STATUS §5's \`review-ledger\` row yielded $union_word_count union words, expected exactly 1; the status canon moved and L17 would pass vacuously against whatever §9 happens to say"
+else
+  union_bullet="$(printf '%s\n' "$sec9" | tr 'A-Z' 'a-z' | bullet_body "$union_word states are" || true)"
+
+  if [ -z "$union_bullet" ]; then
+    fail "§9 defines no set under the word $STATUS §5 cites ($union_word); a consumer resolving that citation gets nothing back, so the countable signal for review-ledger cannot be derived"
+  else
+    for literal in info closed union; do
+      if ! printf '%s\n' "$union_bullet" | grep -qF "$literal"; then
+        fail "§9's $union_word bullet does not name \"$literal\"; the union and the BLOCKER/CRITICAL gate set have to be distinguished where they are defined, or a reader cannot tell which one $STATUS §5 is asking for"
+      fi
+    done
+  fi
+fi
+
 report
 
-echo "check-ledger: OK — ledger canon complete, $enum_count status values extracted, pass set agrees across §11 and the sdd-archive mirror"
+echo "check-ledger: OK — ledger canon complete, $enum_count status values extracted, pass set agrees across §9, §11 and the sdd-archive mirror"
