@@ -55,7 +55,7 @@ Before any spec sync or archive move, retrieve the change's review ledger
 
 Then evaluate the gate (canonical rule: contract §11):
 
-- The archive pass set is `verified`, `refuted`, and evidenced `wont-fix`. This inline set is a MIRROR of `skills/_shared/review-ledger-contract.md` §11, kept because an executor that cannot resolve that path still has to hold the rule; CI asserts the two set-equal.
+- The archive pass set is `verified`, `refuted`, evidenced `wont-fix` and evidenced `deferred`. This inline set is a MIRROR of `skills/_shared/review-ledger-contract.md` §11, kept because an executor that cannot resolve that path still has to hold the rule; CI asserts the two set-equal.
 - **BLOCK** the archive if any BLOCKER or CRITICAL row has a status outside that pass set. `open` rows, un-reverified `fixed` rows, and JD `suspect` rows all block — a `fixed` row without a verifying re-review is NOT closed; the review loop did not converge and the user must decide, never the agent. Return `status: blocked` and list every offending row (id, location, severity, status).
 - On a blocked archive set `next_recommended: resolve-review`; the user chooses a fix round or an explicit wont-fix decision.
 - `wont-fix` closes a row ONLY when its evidence records an explicit user decision in the exact form `wont-fix — user decision (YYYY-MM-DD): {reason}`. A wont-fix row without a recorded user decision counts as open and blocks. NEVER set wont-fix yourself — only the user can authorize it, and the sdd-review coordinator records it.
