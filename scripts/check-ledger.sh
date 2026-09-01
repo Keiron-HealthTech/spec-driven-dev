@@ -294,6 +294,46 @@ if ! printf '%s\n%s\n' "$audit_bullet" "$template_field" | grep -qF 'destination
   fail "neither $ARCHIVE_SKILL Step 0's audit-trail bullet nor its \`**Deferred rows**\` template field names the destination; a trail recording that work was deferred but not where it went is not a trail"
 fi
 
+# L11 — NEGATIVE, both halves, plus a guard, because an absence produced by a broken extraction
+# reads exactly like compliance. (a) `deferred` is not a severity-floor state: §5 partitions the
+# WARNING and SUGGESTION rows that never block, so a closed BLOCKER state stated there would turn
+# the floor into a second escape hatch nothing gates. (b) `deferred` is not an envelope status: the
+# ledger row's vocabulary and the phase envelope's are different closed sets that happen to share a
+# field name, and A6's prohibition on the `status: {value}` shape is that same constraint one layer
+# down. The envelope extraction is check-envelope.sh:347-355's own idiom, so the two checkers read
+# that row the same way instead of each inventing a parse; the status canon is read here and written
+# nowhere.
+status2="$(section "$STATUS" 2)"
+envelope_enum="$(
+  printf '%s\n' "$status2" |
+    grep -F '| `status` |' |
+    sed -E 's/.*enum `([^`]*)`.*/\1/' |
+    tr '|' '\n' |
+    tr -d ' \\' |
+    grep -E '^[a-z]+$' |
+    sort -u || true
+)"
+envelope_count="$(unit_count "$envelope_enum")"
+envelope_list="$(printf '%s' "$envelope_enum" | tr '\n' ' ' | sed 's/ *$//')"
+
+# Matched case-insensitively: the rule is that §5 does not name the state at all, and a capitalised
+# mention is the same drift written differently.
+floor_hits="$(printf '%s\n' "$sec5" | grep -inF deferred || true)"
+
+while IFS= read -r floor_hit; do
+  if [ -n "$floor_hit" ]; then
+    fail "§5 names \`deferred\` — \"$floor_hit\"; the severity floor is the partition of rows that never block, so a closed BLOCKER state stated there is a second escape hatch no gate reads"
+  fi
+done <<EOF
+$floor_hits
+EOF
+
+if [ "$envelope_count" -ne 3 ]; then
+  fail "$STATUS §2's envelope status enum yielded $envelope_count values, expected exactly 3 ($envelope_list); the status canon moved, and a negative asserted against an extraction that returns nothing passes for the wrong reason"
+elif member deferred "$envelope_enum"; then
+  fail "$STATUS §2's envelope enum carries \`deferred\` (extracted: $envelope_list); a phase envelope reports whether the phase completed and a ledger row reports how a finding was resolved, and one vocabulary leaking into the other is what A6 refuses one shape lower"
+fi
+
 # L12 — the report's own counters. Every closed state the gate accepts has to be countable in the
 # review report, plus `open`. SUPERSET and not equality on purpose: the line legitimately also
 # counts `open`, and its omission of `fixed` — never a closed state — stays legal, because forcing
