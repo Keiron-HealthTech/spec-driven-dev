@@ -528,9 +528,12 @@ enum_sites="$(
   done
 )"
 enum_site_count="$(printf '%s' "$enum_sites" | grep -c . || true)"
+# Flattened for the message: a failure line has to stay one line, or `report` splits it across
+# two "also:" prefixes and the second half reads as a separate finding.
+enum_sites_list="$(printf '%s' "$enum_sites" | tr '\n' ' ' | sed 's/ *$//')"
 
 if [ "$enum_site_count" -ne 1 ]; then
-  fail "the \"\`status\` — one of\" lead-in appears at $enum_site_count sites in the markdown surface, expected exactly 1 ($enum_sites); the enum's single definition site is what makes every other file's partition a derived copy rather than a second declaration"
+  fail "the \"\`status\` — one of\" lead-in appears at $enum_site_count sites in the markdown surface, expected exactly 1 ($enum_sites_list); the enum's single definition site is what makes every other file's partition a derived copy rather than a second declaration"
 elif [ "$enum_sites" != "$LEDGER" ]; then
   fail "the status enum is declared in $enum_sites rather than $LEDGER; the schema's home moved and every clause here reads the wrong file"
 fi
