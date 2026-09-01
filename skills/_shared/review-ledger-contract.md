@@ -151,6 +151,18 @@ decision and lenses run (mode `none`: reported inline instead).
   agent.
 - `wont-fix` counts as closed ONLY with the recorded explicit user decision
   in the §9 evidence form.
+- `deferred` counts as closed ONLY with the recorded explicit user decision in
+  the §9 evidence form, destination included.
+- A ledger whose BLOCKER/CRITICAL rows are closed only by deferred decisions
+  PASSES this gate. The archive proceeds with those findings unfixed, by
+  design, because the user routed each of them to a named destination:
+  `sdd-review` reports that ledger as `REVIEW: RESOLVED` and the cycle
+  continues to verification. This is the intended behaviour, not a hole in the
+  gate.
+- No check can validate a real ledger row. Ledgers live in the artifact store
+  or in the user's own project, while both checkers run over the plugin repo,
+  so this contract mandates the form and the reader applies it. A mandated
+  form is never a validated row.
 - If no ledger exists for the change, warn that the change was implemented
   without review and require explicit user confirmation before archiving
   (backwards compatibility for pre-review changes).
