@@ -256,7 +256,7 @@ and never automatically after apply. Tier is `judgment-day`.
 ## Review Summary
 **Target**: {change|slug} · **Tier**: {trivial|standard|full-4r|judgment-day}
 **Lenses/Judges run**: {list} · **Fix rounds**: {0|1|2}
-**Findings**: {n} BLOCKER, {n} CRITICAL, {n} info → {n} verified, {n} refuted, {n} wont-fix, {n} open
+**Findings**: {n} BLOCKER, {n} CRITICAL, {n} info → {n} verified, {n} refuted, {n} wont-fix, {n} deferred, {n} open
 **Ledger**: {topic + observation id | path | inline}
 REVIEW: CLEAN | RESOLVED | OPEN-FINDINGS | ESCALATED
 ```
