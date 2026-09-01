@@ -53,15 +53,16 @@ Before any spec sync or archive move, retrieve the change's review ledger
 - `openspec` → `openspec/changes/{change-name}/review-ledger.md`
 - `none` → the orchestrator provides the inline ledger from the review phase
 
-Then evaluate the gate (canonical rule: contract §11):
+Then evaluate the gate (canonical rule: `skills/_shared/review-ledger-contract.md` §11 — the LEDGER contract, not the status contract):
 
 - The archive pass set is `verified`, `refuted`, evidenced `wont-fix` and evidenced `deferred`. This inline set is a MIRROR of `skills/_shared/review-ledger-contract.md` §11, kept because an executor that cannot resolve that path still has to hold the rule; CI asserts the two set-equal.
 - **BLOCK** the archive if any BLOCKER or CRITICAL row has a status outside that pass set. `open` rows, un-reverified `fixed` rows, and JD `suspect` rows all block — a `fixed` row without a verifying re-review is NOT closed; the review loop did not converge and the user must decide, never the agent. Return `status: blocked` and list every offending row (id, location, severity, status).
-- On a blocked archive set `next_recommended: resolve-review`; the user chooses a fix round or an explicit wont-fix decision.
+- On a blocked archive set `next_recommended: resolve-review`; the user chooses a fix round, an explicit wont-fix decision, or an explicit deferred decision naming a destination.
 - `wont-fix` closes a row ONLY when its evidence records an explicit user decision in the exact form `wont-fix — user decision (YYYY-MM-DD): {reason}`. A wont-fix row without a recorded user decision counts as open and blocks. NEVER set wont-fix yourself — only the user can authorize it, and the sdd-review coordinator records it.
-- Rows with status `info` never block (severity floor, contract §5).
+- `deferred` closes a row ONLY when its evidence records an explicit user decision in the exact form `deferred — user decision (YYYY-MM-DD): {destination}: {reason}`. The destination segment is MANDATORY: a deferred row whose evidence names no destination counts as open and blocks. NEVER set deferred yourself — only the user can authorize it, and the sdd-review coordinator records it.
+- Rows with status `info` never block (severity floor, `skills/_shared/review-ledger-contract.md` §5).
 - If no ledger exists, WARN that this change was implemented without review and require explicit user confirmation before proceeding (backwards compatibility for pre-review changes).
-- Audit trail: List all `wont-fix` and `info` rows in the archive report, and include the ledger observation ID in the lineage.
+- Audit trail: List all `wont-fix`, `deferred` and `info` rows in the archive report, naming for each `deferred` row the destination its evidence records, and include the ledger observation ID in the lineage.
 
 ### Step 1: Sync Delta Specs to Main Specs
 
