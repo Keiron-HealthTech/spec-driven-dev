@@ -422,7 +422,7 @@ menu="$(printf '%s\n' "$sec9" | bullet_body 'decision menu' || true)"
 menu_n="$(unit_count "$menu")"
 menu9="$(printf '%s\n' "$menu" | menu_set || true)"
 menu9_count="$(unit_count "$menu9")"
-menu9_list="$(printf '%s' "$menu9" | tr '\n' ' ' | sed 's/ *$//;s/ /, /g')"
+menu9_list="$(printf '%s' "$menu9" | awk '{ printf "%s%s", (NR > 1 ? ", " : ""), $0 } END { print "" }')"
 
 if [ "$menu_n" -eq 0 ]; then
   fail "§9 carries no bullet naming a \"decision menu\"; the menu has no definition site, so the sites that state it and the site that cites it resolve to nothing"
@@ -431,6 +431,12 @@ elif [ "$menu_n" -gt 1 ]; then
 elif [ "$menu9_count" -lt 3 ]; then
   fail "§9's decision-menu bullet yielded $menu9_count options, below the floor of 3; the slash-separated option run moved or reflowed, so the definition site states no set for the restating sites to be compared against"
   menu9_count=0
+elif ! member defer "$menu9"; then
+  # Set equality alone would let all three sites drop the same option together and stay equal — the
+  # residual L7 has too. `defer` is the option this change adds, so its membership is pinned at the
+  # definition site exactly as L2 pins `deferred` in §2's enum. One membership test, not an
+  # enumeration: the other three options are compared, never listed.
+  fail "§9's decision-menu bullet does not offer \`defer\` (extracted: $menu9_list); the option that routes a severe finding to a destination is what the deferred state exists to give the user, and three sites agreeing it is gone is still three sites agreeing on the wrong menu"
 fi
 
 gate_step="$(awk '/^5\. \*\*USER GATE/ { f = 1 } f && /^[0-9]+\. / && !/^5\. / { exit } f' "$REVIEW_SKILL" | tr '\n' ' ' | tr -s ' ' || true)"
