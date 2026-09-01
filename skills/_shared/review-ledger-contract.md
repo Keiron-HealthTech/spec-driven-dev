@@ -103,6 +103,12 @@ fixed → verified   (scoped re-review confirmed the fix)
 fixed → open       (scoped re-review rejected the fix)
 ```
 
+- **The user's decision menu is defined here and nowhere else**: fix / wont-fix
+  / defer / leave open. `fix` and `leave open` set no status by themselves;
+  `wont-fix` and `defer` are the two only the user may authorize, each in its
+  evidence form below, and `defer` records status `deferred`. There is no
+  `proceed` option: a row left open does not pass §11, so offering it would
+  offer an outcome the archive gate refuses.
 - `wont-fix` REQUIRES evidence appended in the exact form
   `wont-fix — user decision (YYYY-MM-DD): {reason}`. The agent NEVER sets
   wont-fix on its own; only the user authorizes it and the coordinator
