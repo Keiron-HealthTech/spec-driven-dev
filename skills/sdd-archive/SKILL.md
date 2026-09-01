@@ -195,6 +195,7 @@ Return to the orchestrator:
 ### Review Gate (Step 0)
 **Ledger**: {topic + observation id | path | inline | none — archived on explicit user confirmation}
 **Wont-fix rows**: {id — recorded user decision | none}
+**Deferred rows**: {id — destination — recorded user decision | none}
 **Info rows**: {ids | none}
 
 ### Source of Truth Updated
