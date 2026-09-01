@@ -175,8 +175,10 @@ defined in Ledger Lifecycle and Persistence below.
    - **Persist** (post-refutation).
 5. **USER GATE (ALWAYS)** — before any round-1 fix work: present every
    surviving open BLOCKER/CRITICAL row and ask the user to approve fixing.
-   Per finding the user picks: fix / wont-fix (recorded per contract §9) /
-   leave open. No approval → go to step 8 with the rows open.
+   Per finding the user picks from the decision menu of contract §9:
+   fix / wont-fix / defer / leave open. `wont-fix` and `defer` are recorded in
+   the §9 evidence form and only the user may authorize either; `defer` also
+   requires a destination. No approval → go to step 8 with the rows open.
 6. **Fix round** — dispatch `jd-fix-agent` ONCE with the complete list of
    user-approved, verification-surviving open BLOCKER/CRITICAL rows —
    confirmed ids only, never suspects, never `info` rows. Record its
