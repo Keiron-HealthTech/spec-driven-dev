@@ -266,7 +266,7 @@ Close with exactly ONE outcome token:
 | Token | Meaning |
 |-------|---------|
 | `REVIEW: CLEAN` | Trivial tier, or the run produced zero findings |
-| `REVIEW: RESOLVED` | Findings existed and every BLOCKER/CRITICAL row closed (`verified`, `refuted`, or evidenced `wont-fix`); only `info` rows remain. This enumeration is a MIRROR of `skills/_shared/review-ledger-contract.md` §11 and CI asserts the two set-equal. |
+| `REVIEW: RESOLVED` | Findings existed and every BLOCKER/CRITICAL row closed — `verified`, `refuted`, evidenced `wont-fix`, or evidenced `deferred`. Only severity-floor rows may remain (contract §5). This enumeration is a MIRROR of `skills/_shared/review-ledger-contract.md` §11 and CI asserts the two set-equal. |
 | `REVIEW: OPEN-FINDINGS` | One or more BLOCKER/CRITICAL rows remain open (round budget exhausted, or the user declined fixes) |
 | `REVIEW: ESCALATED` | At least one finding needs a human decision (JD contradiction, or a suspect row the user left unresolved) |
 
