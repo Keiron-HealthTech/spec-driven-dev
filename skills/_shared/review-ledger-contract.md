@@ -107,6 +107,14 @@ fixed → open       (scoped re-review rejected the fix)
   `wont-fix — user decision (YYYY-MM-DD): {reason}`. The agent NEVER sets
   wont-fix on its own; only the user authorizes it and the coordinator
   records it.
+- `deferred` REQUIRES evidence appended in the exact form
+  `deferred — user decision (YYYY-MM-DD): {destination}: {reason}`. The
+  destination segment is MANDATORY: it identifies where the finding was routed,
+  the user supplies it, and this contract stays tracker-agnostic — it names no
+  tracker and assumes none exists. Evidence carrying a reason but no
+  destination does NOT close the row: it counts as open and blocks. The agent
+  NEVER sets deferred on its own; only the user authorizes it and the
+  coordinator records it.
 - `info` is terminal: assigned once to WARNING/SUGGESTION rows, never revisited.
 - `verified`, `refuted`, and evidenced `wont-fix` are the only closed states
   for BLOCKER/CRITICAL rows.
