@@ -59,6 +59,18 @@ bullet_body() { # keyword on $1; body on stdin
 
 tokens() { grep -oE '`[a-z][a-z-]*`' | tr -d '`' | sort -u; }
 
+# bullet_body and para_body print ONE LINE PER MATCHED UNIT, so the line count of an extraction is
+# the number of units its finder matched. Anything above one has to fail rather than be absorbed:
+# every clause here then greps or tokenises the joined output, so two matched units mean a
+# containment test passes on either one — a normative unit that lost its required literal is
+# answered by a commentary unit that happens to carry it — and a set extraction silently unions
+# both. Every extraction below is guarded on this count as well as on emptiness.
+unit_count() { printf '%s' "$1" | grep -c . || true; }
+
+# One shared tail, because the reason is the same at every site and a failure message has to stay
+# a single line or `report` splits it across two "also:" prefixes.
+MULTI_TAIL="the finder matches more than one unit and the joined text is what every comparison reads, so a unit that lost its required text is answered by the other one's copy"
+
 if [ ! -f "$LEDGER" ]; then
   fail "$LEDGER is missing; there is no review canon to check"
   report
@@ -112,9 +124,12 @@ fi
 # L4, L5 and L6 all read one bullet — §9's `deferred` rule — located by its own opening words,
 # so prose elsewhere in the section cannot answer for it.
 deferred_rule="$(printf '%s\n' "$sec9" | bullet_body '`deferred` REQUIRES' || true)"
+deferred_rule_n="$(unit_count "$deferred_rule")"
 
-if [ -z "$deferred_rule" ]; then
+if [ "$deferred_rule_n" -eq 0 ]; then
   fail "§9 carries no bullet opening \"\`deferred\` REQUIRES\"; the state has no evidence form, no mandatory destination and no user-only clause for L4, L5 and L6 to read"
+elif [ "$deferred_rule_n" -gt 1 ]; then
+  fail "§9 carries $deferred_rule_n bullets matching \"\`deferred\` REQUIRES\", expected exactly 1; $MULTI_TAIL. L4, L5, L6 and L21 would be reading a normative rule and a gloss of it as one text"
 else
   # L4 — the form is exact. A row can only be checked against a form that is stated literally.
   for literal in 'user decision' 'YYYY-MM-DD' 'deferred — user decision (YYYY-MM-DD)'; do
@@ -145,16 +160,29 @@ fi
 # CI says which value differs. Both sides are token sets computed from the two normative
 # bullets, so no wording can make two different sets equal. The floor of 3 is a floor: it stops
 # an emptied extraction from reaching `comm`, where an empty side names every value as drift.
-closed9="$(printf '%s\n' "$sec9" | bullet_body 'only CLOSED states' | tokens || true)"
-pass11="$(printf '%s\n' "$sec11" | bullet_body 'archive pass set' | tokens || true)"
+closed9_bullet="$(printf '%s\n' "$sec9" | bullet_body 'only CLOSED states' || true)"
+pass11_bullet="$(printf '%s\n' "$sec11" | bullet_body 'archive pass set' || true)"
+closed9_n="$(unit_count "$closed9_bullet")"
+pass11_n="$(unit_count "$pass11_bullet")"
+closed9="$(printf '%s\n' "$closed9_bullet" | tokens || true)"
+pass11="$(printf '%s\n' "$pass11_bullet" | tokens || true)"
 closed9_count="$(printf '%s' "$closed9" | grep -c . || true)"
 pass11_count="$(printf '%s' "$pass11" | grep -c . || true)"
 
-if [ "$closed9_count" -lt 3 ]; then
+# A unioned set is worse than an empty one: it compares as drift and the message blames the wrong
+# side. So the count is zeroed after the multiplicity failure, which is what every clause below is
+# already gated on, and the run reports the multiplicity once instead of a downstream consequence.
+if [ "$closed9_n" -gt 1 ]; then
+  fail "§9 carries $closed9_n bullets matching \"only CLOSED states\", expected exactly 1; $MULTI_TAIL. A unioned closed set is what L7 would then compare against §11"
+  closed9_count=0
+elif [ "$closed9_count" -lt 3 ]; then
   fail "§9's closed-state bullet extracted $closed9_count values, below the floor of 3; the bullet naming \"only CLOSED states\" moved or reflowed, so §9 no longer states the set §11 claims to copy"
 fi
 
-if [ "$pass11_count" -lt 3 ]; then
+if [ "$pass11_n" -gt 1 ]; then
+  fail "§11 carries $pass11_n bullets matching \"archive pass set\", expected exactly 1; $MULTI_TAIL. The pass set is the reference L2, L7, L8, L9, L12 and L19 all read"
+  pass11_count=0
+elif [ "$pass11_count" -lt 3 ]; then
   fail "§11's \"archive pass set\" bullet extracted $pass11_count values, below the floor of 3; neither §9's closed set nor $ARCHIVE_SKILL's mirror has anything left to be compared against"
 fi
 
@@ -191,9 +219,14 @@ if [ -z "$step0" ]; then
   fail "$ARCHIVE_SKILL has no \"### Step 0\" section; the archive gate's mirror has no home"
 fi
 
-arch_set="$(printf '%s\n' "$step0" | bullet_body 'MIRROR' | tokens || true)"
+mirror_bullet="$(printf '%s\n' "$step0" | bullet_body 'MIRROR' || true)"
+mirror_bullet_n="$(unit_count "$mirror_bullet")"
+arch_set="$(printf '%s\n' "$mirror_bullet" | tokens || true)"
 
-if [ -z "$arch_set" ]; then
+if [ "$mirror_bullet_n" -gt 1 ]; then
+  fail "$ARCHIVE_SKILL Step 0 carries $mirror_bullet_n bullets matching \"MIRROR\", expected exactly 1; $MULTI_TAIL. Two mirrors in one section union into a pass set that matches neither"
+  arch_set=""
+elif [ -z "$arch_set" ]; then
   fail "$ARCHIVE_SKILL Step 0 carries no MIRROR-labelled pass-set bullet; L8's set comparison has nothing to read"
 fi
 
@@ -205,7 +238,6 @@ if [ "$pass11_count" -ge 3 ] && [ -n "$arch_set" ]; then
     fail "pass-set drift between §11 and $ARCHIVE_SKILL Step 0: only in §11: ${only_11:-none}; only in the mirror: ${only_arch:-none}"
   fi
 
-  mirror_bullet="$(printf '%s\n' "$step0" | bullet_body 'MIRROR' || true)"
   if ! printf '%s\n' "$mirror_bullet" | grep -qF 'review-ledger-contract.md'; then
     fail "$ARCHIVE_SKILL Step 0's mirror bullet does not name review-ledger-contract.md; a mirror that does not say what it mirrors reads as an independent statement"
   fi
@@ -243,10 +275,13 @@ fi
 # and the report template has to carry a field for them. `**Deferred rows**` is a template field,
 # not prose — a paragraph about auditing deferrals cannot produce it.
 audit_bullet="$(printf '%s\n' "$step0" | bullet_body 'Audit trail' || true)"
+audit_bullet_n="$(unit_count "$audit_bullet")"
 template_field="$(grep -F '**Deferred rows**' "$ARCHIVE_SKILL" || true)"
 
-if [ -z "$audit_bullet" ]; then
+if [ "$audit_bullet_n" -eq 0 ]; then
   fail "$ARCHIVE_SKILL Step 0 carries no \"Audit trail\" bullet; the rows the gate lets through unfixed would leave no trail at all"
+elif [ "$audit_bullet_n" -gt 1 ]; then
+  fail "$ARCHIVE_SKILL Step 0 carries $audit_bullet_n bullets matching \"Audit trail\", expected exactly 1; $MULTI_TAIL"
 elif ! printf '%s\n' "$audit_bullet" | grep -qF 'deferred'; then
   fail "$ARCHIVE_SKILL Step 0's audit-trail bullet does not list \`deferred\` rows; a closed state with no audit trail is a finding that disappears"
 fi
@@ -311,9 +346,12 @@ menu_options='fix / wont-fix / defer / leave open'
 
 # (a) the definition site, and the two sites that restate it
 menu="$(printf '%s\n' "$sec9" | bullet_body 'decision menu' || true)"
+menu_n="$(unit_count "$menu")"
 
-if [ -z "$menu" ]; then
+if [ "$menu_n" -eq 0 ]; then
   fail "§9 carries no bullet naming a \"decision menu\"; the menu has no definition site, so the sites that state it and the site that cites it resolve to nothing"
+elif [ "$menu_n" -gt 1 ]; then
+  fail "§9 carries $menu_n bullets naming a \"decision menu\", expected exactly 1; $MULTI_TAIL. A menu with two definition sites is the drift this clause exists to refuse"
 elif ! printf '%s\n' "$menu" | grep -qF "$menu_options"; then
   fail "§9's decision-menu bullet does not state the options \"$menu_options\"; the definition site has to carry the set the other three sites resolve to"
 fi
@@ -327,9 +365,12 @@ elif ! printf '%s\n' "$gate_step" | grep -qF "$menu_options"; then
 fi
 
 orch_bullet="$(bullet_body 'OPEN-FINDINGS' < "$ORCHESTRATOR" || true)"
+orch_bullet_n="$(unit_count "$orch_bullet")"
 
-if [ -z "$orch_bullet" ]; then
+if [ "$orch_bullet_n" -eq 0 ]; then
   fail "$ORCHESTRATOR carries no \`REVIEW: OPEN-FINDINGS\` outcome bullet; the menu's second restating site moved, and L14 and L15 both read it"
+elif [ "$orch_bullet_n" -gt 1 ]; then
+  fail "$ORCHESTRATOR carries $orch_bullet_n bullets matching \"OPEN-FINDINGS\", expected exactly 1; $MULTI_TAIL. L15's negative would then be satisfied by whichever bullet omits \`proceed\`"
 elif ! printf '%s\n' "$orch_bullet" | grep -qF "$menu_options"; then
   fail "$ORCHESTRATOR's OPEN-FINDINGS bullet does not offer \"$menu_options\"; the router presents the user a different option set from §9"
 fi
@@ -338,9 +379,12 @@ fi
 # it cites §9 rather than restating it. Both halves are needed: the citation alone would allow the
 # options to stay beside it, and the negative alone would allow a bare rule citing nothing.
 jd_bullet="$(printf '%s\n' "$sec7" | bullet_body 'resolve only by user decision' || true)"
+jd_bullet_n="$(unit_count "$jd_bullet")"
 
-if [ -z "$jd_bullet" ]; then
+if [ "$jd_bullet_n" -eq 0 ]; then
   fail "§7 carries no bullet stating that suspect and contradiction findings \"resolve only by user decision\"; the rule that hands those rows to the user's menu moved"
+elif [ "$jd_bullet_n" -gt 1 ]; then
+  fail "§7 carries $jd_bullet_n bullets matching \"resolve only by user decision\", expected exactly 1; $MULTI_TAIL. One bullet citing §9 would answer for another that enumerates the menu itself"
 else
   if ! printf '%s\n' "$jd_bullet" | grep -qF '§9'; then
     fail "§7's user-decision bullet does not cite §9; a rule that names no definition site is read as one, and this is the site that gets left behind when the menu changes"
@@ -355,7 +399,7 @@ fi
 # would reject. Scope is load-bearing and the negative is NEVER file-wide: elsewhere in this file
 # "proceed to Phase 5" is correct prose, and §9's own menu bullet mentions `proceed` in negated
 # form. Both must survive, so the assertion reads the OPEN-FINDINGS bullet and nothing else.
-if [ -n "$orch_bullet" ] && printf '%s\n' "$orch_bullet" | grep -qF 'proceed'; then
+if [ "$orch_bullet_n" -eq 1 ] && printf '%s\n' "$orch_bullet" | grep -qF 'proceed'; then
   fail "$ORCHESTRATOR's OPEN-FINDINGS bullet still offers \`proceed\`; §11 refuses a ledger with open severe rows, so that option has no legal outcome and \`defer\` is what it was reaching for"
 fi
 
@@ -400,9 +444,12 @@ if [ "$union_word_count" -ne 1 ]; then
   fail "$STATUS §5's \`review-ledger\` row yielded $union_word_count union words, expected exactly 1; the status canon moved and L17 would pass vacuously against whatever §9 happens to say"
 else
   union_bullet="$(printf '%s\n' "$sec9" | tr 'A-Z' 'a-z' | bullet_body "$union_word states are" || true)"
+  union_bullet_n="$(unit_count "$union_bullet")"
 
-  if [ -z "$union_bullet" ]; then
+  if [ "$union_bullet_n" -eq 0 ]; then
     fail "§9 defines no set under the word $STATUS §5 cites ($union_word); a consumer resolving that citation gets nothing back, so the countable signal for review-ledger cannot be derived"
+  elif [ "$union_bullet_n" -gt 1 ]; then
+    fail "§9 defines $union_bullet_n sets under the word $STATUS §5 cites ($union_word), expected exactly 1; $MULTI_TAIL. A citation resolving to two definitions resolves to neither"
   else
     for literal in info closed union; do
       if ! printf '%s\n' "$union_bullet" | grep -qF "$literal"; then
@@ -418,9 +465,12 @@ fi
 # ONE bullet of §11, found by the caveat's own opening words, so they cannot be satisfied by
 # scattering the elements across the section and no gloss outside §11 can answer for them.
 caveat="$(printf '%s\n' "$sec11" | bullet_body 'No check can validate' || true)"
+caveat_n="$(unit_count "$caveat")"
 
-if [ -z "$caveat" ]; then
+if [ "$caveat_n" -eq 0 ]; then
   fail "§11 carries no bullet opening \"No check can validate\"; the canon does not say what \"mechanically checkable\" means here, so every clause in this script reads as a test of a real ledger row"
+elif [ "$caveat_n" -gt 1 ]; then
+  fail "§11 carries $caveat_n bullets opening \"No check can validate\", expected exactly 1; $MULTI_TAIL. The caveat that bounds every other clause cannot be assembled out of two"
 else
   for literal in 'real ledger row' "user's own project" 'checkers run over the plugin repo' 'A mandated form is never a validated row'; do
     if ! printf '%s\n' "$caveat" | grep -qF "$literal"; then
@@ -599,11 +649,14 @@ fi
 # assembled out of the routing table or the mirror row a few lines above.
 summary_section="$(awk '$0 == "## Review Summary" { f = 1; next } f && /^## / { exit } f' "$REVIEW_SKILL" || true)"
 by_design="$(printf '%s\n' "$summary_section" | para_body 'rows are all closed' || true)"
+by_design_n="$(unit_count "$by_design")"
 
 if [ -z "$summary_section" ]; then
   fail "$REVIEW_SKILL has no \"## Review Summary\" section; the outcome tokens and their consequences moved and L22 has nothing to read"
-elif [ -z "$by_design" ]; then
+elif [ "$by_design_n" -eq 0 ]; then
   fail "$REVIEW_SKILL's Review Summary carries no paragraph about a ledger whose rows are all closed; the deferred-only outcome is left to be inferred, and inferred it reads as a hole in the archive gate"
+elif [ "$by_design_n" -gt 1 ]; then
+  fail "$REVIEW_SKILL's Review Summary carries $by_design_n paragraphs about a ledger whose rows are all closed, expected exactly 1; $MULTI_TAIL. The by-design claim has to be made where the outcome is defined, not spread over two paragraphs"
 else
   for literal in 'is RESOLVED and routes as RESOLVED' 'resolves it for this cycle' 'archives with that finding unfixed, by design'; do
     if ! printf '%s\n' "$by_design" | grep -qF "$literal"; then
@@ -618,11 +671,14 @@ fi
 # Scoped to the Rules section and then to the bullet opening with the rule's own normative words.
 rules_section="$(awk '$0 == "## Rules" { f = 1; next } f && /^## / { exit } f' "$REVIEW_SKILL" || true)"
 never_set="$(printf '%s\n' "$rules_section" | bullet_body 'NEVER dispatch the fix agent' || true)"
+never_set_n="$(unit_count "$never_set")"
 
 if [ -z "$rules_section" ]; then
   fail "$REVIEW_SKILL has no \"## Rules\" section; the rule reserving both escape hatches to the user has no home"
-elif [ -z "$never_set" ]; then
+elif [ "$never_set_n" -eq 0 ]; then
   fail "$REVIEW_SKILL's Rules section carries no bullet opening \"NEVER dispatch the fix agent\"; the rule that keeps the coordinator out of both escape hatches moved"
+elif [ "$never_set_n" -gt 1 ]; then
+  fail "$REVIEW_SKILL's Rules section carries $never_set_n bullets opening \"NEVER dispatch the fix agent\", expected exactly 1; $MULTI_TAIL. This rule has no other mechanical defence at all"
 else
   if ! printf '%s\n' "$never_set" | grep -qF '`deferred` rows'; then
     fail "$REVIEW_SKILL's no-dispatch rule does not list \`deferred\` rows; a row closed by routing the work elsewhere is not a row for the fix agent"
