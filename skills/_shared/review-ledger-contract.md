@@ -78,7 +78,8 @@ Report a finding only if it is a real, user-impacting defect you would defend wi
 - Both judges report the same finding (matched by location and claim) → `confirmed`: status `open`, verification `jd:both`. Confirmed findings become fixable ONLY after the user is asked and approves proceeding to fix.
 - Exactly one judge reports it → `suspect`: status stays `open`, verification `jd:a-only` or `jd:b-only`. A suspect finding is NEVER auto-fixed.
 - The judges contradict each other on the same location → verification `jd:contradiction`: escalate to the human; automated handling stops for that finding.
-- Suspect and contradiction findings resolve only by user decision (fix or wont-fix).
+- Suspect and contradiction findings resolve only by user decision, from the
+  decision menu of §9.
 
 ## 8. Fix-Round Budget
 
