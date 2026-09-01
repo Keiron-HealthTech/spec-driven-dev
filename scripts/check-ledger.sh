@@ -429,6 +429,209 @@ else
   done
 fi
 
+# --------------------------------------------------------------------------------------------
+# L19-L23 close five labels this change over-claimed. The delta spec measures five [CI] scenarios
+# as though a checker defended them while nothing here read them. The ones whose text this change
+# wrote or edited get a clause; the ones carried forward unchanged from a modified requirement are
+# relabelled in the spec instead of defended by a clause invented after the fact, because a clause
+# written to cover text nobody touched asserts the tree it was written against and nothing more.
+# --------------------------------------------------------------------------------------------
+
+# The markdown surface, in check-envelope.sh:104-110's own idiom, so the two checkers agree on what
+# "repo-wide" means rather than each inventing a scope.
+scan_files="$(
+  {
+    find skills agents commands -type f -name '*.md' 2>/dev/null || true
+    for surface_file in "$README" AGENTS.md; do
+      if [ -f "$surface_file" ]; then echo "$surface_file"; fi
+    done
+  } | sort -u
+)"
+
+names_all() { # whitespace-separated values on $1, file on $2 — every line naming all of them
+  awk -v vals="$1" -v file="$2" '
+    {
+      n = split(vals, V, " +")
+      for (i = 1; i <= n; i++) {
+        if (V[i] != "" && index($0, V[i]) == 0) { next }
+      }
+      print file "\t" FNR "\t" $0
+    }
+  ' "$2"
+}
+
+para_body() { # keyword on $1; body on stdin — one blank-line-delimited paragraph, joined
+  awk -v kw="$1" '
+    function flush() { if (buf != "" && index(buf, kw) > 0) print buf; buf = "" }
+    /^[[:space:]]*$/ { flush(); next }
+    { buf = (buf == "" ? $0 : buf " " $0) }
+    END { flush() }
+  ' | tr -s " "
+}
+
+# L19 — the mirror count is frozen at exactly two, and every other statement of the pass set is
+# accounted for. The pass set legitimately has one definition site plus two copies, because both
+# are read by executor sub-agents that may not be able to resolve the contract's path. A THIRD
+# copy is drift, and its failure mode is silent: the third statement keeps the old set and no
+# clause compares it to anything, which is how this change found `sdd-review`'s row stranded while
+# `sdd-archive`'s was already asserted. The three legitimate categories are keyed on SHAPES — the
+# canon's own path, the `MIRROR` label beside the contract's filename, and the review report's
+# `**Findings**:` field label — never on a topic word and never on a hardcoded list of values.
+pass_statements="$(
+  if [ "$pass11_count" -ge 3 ]; then
+    printf '%s\n' "$scan_files" | while IFS= read -r scan_file; do
+      if [ -n "$scan_file" ]; then
+        names_all "$(printf '%s' "$pass11" | tr '\n' ' ')" "$scan_file"
+      fi
+    done
+  fi
+)"
+labelled_mirrors="$(printf '%s\n' "$pass_statements" | grep -F 'MIRROR' | grep -F 'review-ledger-contract.md' || true)"
+mirror_count="$(printf '%s' "$labelled_mirrors" | grep -c . || true)"
+mirror_files="$(printf '%s\n' "$labelled_mirrors" | cut -f1 | sort -u | grep -c . || true)"
+
+if [ "$pass11_count" -ge 3 ]; then
+  if [ "$mirror_count" -eq 0 ]; then
+    fail "no line in the markdown surface states the §11 pass set under a \`MIRROR\` label naming review-ledger-contract.md; the label convention that makes a copy findable moved, so L19 can no longer tell a permitted mirror from a third statement"
+  elif [ "$mirror_count" -ne 2 ] || [ "$mirror_files" -ne 2 ]; then
+    fail "the §11 pass set is mirrored at $mirror_count labelled site(s) across $mirror_files file(s), expected exactly 2 across 2 — $ARCHIVE_SKILL Step 0 and $REVIEW_SKILL's \`REVIEW: RESOLVED\` row, the only two an executor reads when it cannot resolve the contract's path"
+  fi
+
+  while IFS="$(printf '\t')" read -r stmt_file stmt_line stmt_text; do
+    if [ -z "$stmt_file" ] || [ "$stmt_file" = "$LEDGER" ]; then
+      continue
+    fi
+    if printf '%s\n' "$stmt_text" | grep -qF 'MIRROR' && printf '%s\n' "$stmt_text" | grep -qF 'review-ledger-contract.md'; then
+      continue
+    fi
+    if printf '%s\n' "$stmt_text" | grep -qF '**Findings**:'; then
+      continue
+    fi
+    fail "$stmt_file:$stmt_line states the whole §11 pass set without labelling itself a MIRROR of review-ledger-contract.md; that is a third copy of the set, and nothing compares it to §11"
+  done <<EOF
+$pass_statements
+EOF
+fi
+
+# L20 — the status enum has exactly one home. check-envelope.sh's A3 makes this assertion for the
+# status canon's two enums; the ledger's enum never had it, and this change is the first to touch
+# that line since it was written. Two halves, because either alone is satisfiable the wrong way:
+# the definition site's own lead-in shape occurs exactly once and in $LEDGER, and no other file in
+# the markdown surface carries a line naming every declared value. The second half is what makes it
+# a test of the enum rather than a test of one phrase — a full copy written in different words
+# still has to name all of them.
+enum_sites="$(
+  printf '%s\n' "$scan_files" | while IFS= read -r scan_file; do
+    if [ -n "$scan_file" ]; then
+      grep -lF '`status` — one of' "$scan_file" || true
+    fi
+  done
+)"
+enum_site_count="$(printf '%s' "$enum_sites" | grep -c . || true)"
+
+if [ "$enum_site_count" -ne 1 ]; then
+  fail "the \"\`status\` — one of\" lead-in appears at $enum_site_count sites in the markdown surface, expected exactly 1 ($enum_sites); the enum's single definition site is what makes every other file's partition a derived copy rather than a second declaration"
+elif [ "$enum_sites" != "$LEDGER" ]; then
+  fail "the status enum is declared in $enum_sites rather than $LEDGER; the schema's home moved and every clause here reads the wrong file"
+fi
+
+enum_copies="$(
+  printf '%s\n' "$scan_files" | while IFS= read -r scan_file; do
+    if [ -n "$scan_file" ] && [ "$scan_file" != "$LEDGER" ]; then
+      names_all "$enum_list" "$scan_file"
+    fi
+  done
+)"
+
+while IFS="$(printf '\t')" read -r copy_file copy_line copy_text; do
+  if [ -z "$copy_file" ]; then
+    continue
+  fi
+  fail "$copy_file:$copy_line names every value of §2's status enum; the full enum has one definition site and a second copy drifts the moment an eighth value is added"
+done <<EOF
+$enum_copies
+EOF
+
+# L21 — NEGATIVE: the canon names no issue tracker. `{destination}` is a free string the user
+# supplies, and a tracker reference in an artifact schema would be this plugin's first. A real ROW
+# may name a real destination; the prohibition is on the CANON, never on the data. Two shapes,
+# tested deliberately differently. Product names are matched case-insensitively over the whole
+# file. The issue-key shape is matched case-SENSITIVELY and only inside §9 and §11, because §2's
+# own row-id format is `{PREFIX}-{NNN}` — a tracker-shaped string by construction — so a whole-file
+# shape test would fire on the canon's own ids, and under `-i` the shape matches ordinary hyphenated
+# words too, which is how a negative like this comes to pass for the wrong reason.
+tracker_names="$(grep -inE 'jira|linear|asana|trello|youtrack|clickup|redmine|bugzilla|pivotal|github issue|gitlab issue|azure boards' "$LEDGER" || true)"
+tracker_shapes="$(printf '%s\n%s\n' "$sec9" "$sec11" | grep -nE '[A-Z]{2,}-[0-9]+' || true)"
+
+while IFS= read -r tracker_hit; do
+  if [ -n "$tracker_hit" ]; then
+    fail "$LEDGER names an issue tracker: \"$tracker_hit\"; the destination is a free string the user supplies and this canon assumes no tracker exists"
+  fi
+done <<EOF
+$tracker_names
+EOF
+
+while IFS= read -r shape_hit; do
+  if [ -n "$shape_hit" ]; then
+    fail "§9 or §11 shows a tracker-shaped issue identifier: \"$shape_hit\"; an example destination in that shape assumes the tracker the canon says it does not assume"
+  fi
+done <<EOF
+$tracker_shapes
+EOF
+
+if [ -n "$deferred_rule" ]; then
+  for literal in 'the user supplies it' 'names no tracker and assumes none exists'; do
+    if ! printf '%s\n' "$deferred_rule" | grep -qF "$literal"; then
+      fail "§9's \`deferred\` rule does not state \"$literal\"; without it the destination has no stated nature, and the negative above defends an absence the canon never claimed"
+    fi
+  done
+fi
+
+# L22 — the by-design consequence, stated at the definition site. A review whose severe rows are
+# all evidenced `deferred` returns RESOLVED, routes to verify, and the change archives with those
+# findings unfixed. That reads exactly like a hole in the gate, so the canon has to say it is
+# intended, in those words, where the outcome is defined — otherwise a future reader files it as a
+# bug and a future refuter confirms the filing. Scoped to the outcome section and then to the ONE
+# paragraph opening with its own words, so the three literals have to co-occur there and cannot be
+# assembled out of the routing table or the mirror row a few lines above.
+summary_section="$(awk '$0 == "## Review Summary" { f = 1; next } f && /^## / { exit } f' "$REVIEW_SKILL" || true)"
+by_design="$(printf '%s\n' "$summary_section" | para_body 'rows are all closed' || true)"
+
+if [ -z "$summary_section" ]; then
+  fail "$REVIEW_SKILL has no \"## Review Summary\" section; the outcome tokens and their consequences moved and L22 has nothing to read"
+elif [ -z "$by_design" ]; then
+  fail "$REVIEW_SKILL's Review Summary carries no paragraph about a ledger whose rows are all closed; the deferred-only outcome is left to be inferred, and inferred it reads as a hole in the archive gate"
+else
+  for literal in 'is RESOLVED and routes as RESOLVED' 'resolves it for this cycle' 'archives with that finding unfixed, by design'; do
+    if ! printf '%s\n' "$by_design" | grep -qF "$literal"; then
+      fail "$REVIEW_SKILL's deferred-only paragraph does not state \"$literal\"; the consequence has to be claimed as intended behaviour at the site that defines the outcome, not implied near it"
+    fi
+  done
+fi
+
+# L23 — neither escape hatch is the coordinator's to take. This rule is the one conformance edit in
+# this change with no other mechanical defence at all: A6 and A7 do not read it, no set extraction
+# touches it, and one careless edit reverts it silently in the file the whole change is about.
+# Scoped to the Rules section and then to the bullet opening with the rule's own normative words.
+rules_section="$(awk '$0 == "## Rules" { f = 1; next } f && /^## / { exit } f' "$REVIEW_SKILL" || true)"
+never_set="$(printf '%s\n' "$rules_section" | bullet_body 'NEVER dispatch the fix agent' || true)"
+
+if [ -z "$rules_section" ]; then
+  fail "$REVIEW_SKILL has no \"## Rules\" section; the rule reserving both escape hatches to the user has no home"
+elif [ -z "$never_set" ]; then
+  fail "$REVIEW_SKILL's Rules section carries no bullet opening \"NEVER dispatch the fix agent\"; the rule that keeps the coordinator out of both escape hatches moved"
+else
+  if ! printf '%s\n' "$never_set" | grep -qF '`deferred` rows'; then
+    fail "$REVIEW_SKILL's no-dispatch rule does not list \`deferred\` rows; a row closed by routing the work elsewhere is not a row for the fix agent"
+  fi
+  if ! printf '%s\n' "$never_set" | grep -qF 'NEVER set `wont-fix` or `deferred`'; then
+    fail "$REVIEW_SKILL's never-set rule does not name \`deferred\` beside \`wont-fix\`; a second escape hatch an agent may take on its own is not a user decision, and §9 reserves both"
+  fi
+  if ! printf '%s\n' "$never_set" | grep -qF '§9'; then
+    fail "$REVIEW_SKILL's never-set rule cites no §9; the form the decision has to be recorded in lives there, and a rule with no citation is read as its own definition site"
+  fi
+fi
+
 report
 
 echo "check-ledger: OK — ledger canon complete, $enum_count status values extracted, pass set agrees across §9, §11 and both mirrors"
