@@ -60,7 +60,9 @@ bullet_body() { # keyword on $1; body on stdin
 tokens() { grep -oE '`[a-z][a-z-]*`' | tr -d '`' | sort -u; }
 
 # bullet_body and para_body print ONE LINE PER MATCHED UNIT, so the line count of an extraction is
-# the number of units its finder matched. Anything above one has to fail rather than be absorbed:
+# the number of units its finder matched. A plain line grep is the same shape with the unit fixed at
+# one physical line: one line by construction is not one line MATCHED, so those extractions are
+# counted here too. Anything above one has to fail rather than be absorbed:
 # every clause here then greps or tokenises the joined output, so two matched units mean a
 # containment test passes on either one — a normative unit that lost its required literal is
 # answered by a commentary unit that happens to carry it — and a set extraction silently unions
@@ -248,12 +250,19 @@ fi
 
 # L9 — sdd-review's `REVIEW: RESOLVED` row is the second mirror of §11, and CI asserts the two
 # set-equal. Line-scoping is legitimate here and only here: a markdown table row is one line by
-# construction, so no reflow can split it. The MIRROR label makes the row findable; the set
-# comparison is the assertion, so a reworded label empties the extraction and hits the guard
-# rather than turning the clause green.
-rev_set="$(grep -F 'REVIEW: RESOLVED' "$REVIEW_SKILL" | grep -F 'MIRROR' | tokens || true)"
+# construction, so no reflow can split it. That bounds the unit, not the number of them, so the row
+# is counted as well: a second line carrying both labels unions into the set and restores a value
+# the normative row dropped. The MIRROR label makes the row findable; the set comparison is the
+# assertion, so a reworded label empties the extraction and hits the guard rather than turning the
+# clause green.
+rev_row="$(grep -F 'REVIEW: RESOLVED' "$REVIEW_SKILL" | grep -F 'MIRROR' || true)"
+rev_row_n="$(unit_count "$rev_row")"
+rev_set="$(printf '%s\n' "$rev_row" | tokens || true)"
 
-if [ -z "$rev_set" ]; then
+if [ "$rev_row_n" -gt 1 ]; then
+  fail "$REVIEW_SKILL carries $rev_row_n MIRROR-labelled \`REVIEW: RESOLVED\` rows, expected exactly 1; $MULTI_TAIL. Two mirror rows union into a pass set that matches neither"
+  rev_set=""
+elif [ -z "$rev_set" ]; then
   fail "$REVIEW_SKILL carries no MIRROR-labelled \`REVIEW: RESOLVED\` row; the second copy of the pass set is unasserted, and defending one copy while stranding the other is the partial fix that reads as complete"
 fi
 
@@ -265,7 +274,7 @@ if [ "$pass11_count" -ge 3 ] && [ -n "$rev_set" ]; then
     fail "pass-set drift between §11 and $REVIEW_SKILL's \`REVIEW: RESOLVED\` row: only in §11: ${only_11_rev:-none}; only in the mirror: ${only_rev:-none}"
   fi
 
-  if ! grep -F 'REVIEW: RESOLVED' "$REVIEW_SKILL" | grep -F 'MIRROR' | grep -qF '§11'; then
+  if ! printf '%s\n' "$rev_row" | grep -qF '§11'; then
     fail "$REVIEW_SKILL's \`REVIEW: RESOLVED\` row is labelled a MIRROR without citing §11; the section it mirrors has to be named for a reader to resolve the copy"
   fi
 fi
@@ -277,6 +286,7 @@ fi
 audit_bullet="$(printf '%s\n' "$step0" | bullet_body 'Audit trail' || true)"
 audit_bullet_n="$(unit_count "$audit_bullet")"
 template_field="$(grep -F '**Deferred rows**' "$ARCHIVE_SKILL" || true)"
+template_field_n="$(unit_count "$template_field")"
 
 if [ "$audit_bullet_n" -eq 0 ]; then
   fail "$ARCHIVE_SKILL Step 0 carries no \"Audit trail\" bullet; the rows the gate lets through unfixed would leave no trail at all"
@@ -286,8 +296,11 @@ elif ! printf '%s\n' "$audit_bullet" | grep -qF 'deferred'; then
   fail "$ARCHIVE_SKILL Step 0's audit-trail bullet does not list \`deferred\` rows; a closed state with no audit trail is a finding that disappears"
 fi
 
-if [ -z "$template_field" ]; then
+if [ "$template_field_n" -eq 0 ]; then
   fail "$ARCHIVE_SKILL's archive-report template carries no \`**Deferred rows**\` field; the audit-trail rule has nowhere to be written down, and nothing in v1.4.0 clears a deferred row later"
+elif [ "$template_field_n" -gt 1 ]; then
+  fail "$ARCHIVE_SKILL carries $template_field_n lines matching \"**Deferred rows**\", expected exactly 1; $MULTI_TAIL. The field the archive report is filled from is the normative one, and a sentence about deferred rows is not it"
+  template_field=""
 fi
 
 if ! printf '%s\n%s\n' "$audit_bullet" "$template_field" | grep -qF 'destination'; then
@@ -347,9 +360,12 @@ fi
 # `fixed` in would smuggle an unrelated behaviour change into this one. The anchor is the Return
 # template's field label, the thing the coordinator fills in rather than an explanation of it.
 buckets="$(grep -F '**Findings**:' "$REVIEW_SKILL" || true)"
+buckets_n="$(unit_count "$buckets")"
 
-if [ -z "$buckets" ]; then
+if [ "$buckets_n" -eq 0 ]; then
   fail "$REVIEW_SKILL has no \`**Findings**:\` bucket line; the review report has no counters for the pass set to be compared against"
+elif [ "$buckets_n" -gt 1 ]; then
+  fail "$REVIEW_SKILL carries $buckets_n lines matching \"**Findings**:\", expected exactly 1; $MULTI_TAIL. A filled-in example counting a status the template itself omits is the absorption this refuses"
 elif [ "$pass11_count" -ge 3 ]; then
   while IFS= read -r bucket_value; do
     if [ -z "$bucket_value" ]; then
