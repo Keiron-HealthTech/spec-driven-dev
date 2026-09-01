@@ -351,6 +351,23 @@ else
   fi
 fi
 
+# L18 — the checkability caveat, and the reason it needs a clause at all. The scenario asking for
+# it is labelled [CI] while nothing in this script read it: a row measured as though a checker
+# defended it is exactly the debt the previous cycle paid for. The four literals must co-occur in
+# ONE bullet of §11, found by the caveat's own opening words, so they cannot be satisfied by
+# scattering the elements across the section and no gloss outside §11 can answer for them.
+caveat="$(printf '%s\n' "$sec11" | bullet_body 'No check can validate' || true)"
+
+if [ -z "$caveat" ]; then
+  fail "§11 carries no bullet opening \"No check can validate\"; the canon does not say what \"mechanically checkable\" means here, so every clause in this script reads as a test of a real ledger row"
+else
+  for literal in 'real ledger row' "user's own project" 'checkers run over the plugin repo' 'A mandated form is never a validated row'; do
+    if ! printf '%s\n' "$caveat" | grep -qF "$literal"; then
+      fail "§11's checkability caveat does not carry the literal \"$literal\"; without it the canon claims a coverage no checker in this repository can deliver"
+    fi
+  done
+fi
+
 report
 
 echo "check-ledger: OK — ledger canon complete, $enum_count status values extracted, pass set agrees across §9, §11 and both mirrors"
