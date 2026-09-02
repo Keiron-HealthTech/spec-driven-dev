@@ -357,11 +357,16 @@ deferred_form_n="$(unit_count "$deferred_form")"
 rule_mirror="$(printf '%s\n' "$step0" | bullet_body 'inline rule is a MIRROR' || true)"
 rule_mirror_n="$(unit_count "$rule_mirror")"
 
-if [ "$deferred_form_n" -gt 1 ]; then
-  fail "§9's \`deferred\` rule states $deferred_form_n backticked forms opening \"deferred — user decision\", expected exactly 1; $MULTI_TAIL. L24 would compare the mirror against whichever one came first"
-  deferred_form=""
-elif [ "$deferred_form_n" -eq 0 ]; then
-  fail "§9's \`deferred\` rule states no backticked form opening \"deferred — user decision\"; L4 above says which literal went missing, and L24 has no form to compare the mirror against"
+# Gated on §9's rule being found as exactly one bullet — the condition L4, L5 and L6 already run
+# under. Ungated, a moved `deferred` REQUIRES anchor reports twice: once as the missing bullet and
+# once as a form nothing could have extracted from it, which is one defect read as two findings.
+if [ "$deferred_rule_n" -eq 1 ]; then
+  if [ "$deferred_form_n" -gt 1 ]; then
+    fail "§9's \`deferred\` rule states $deferred_form_n backticked forms opening \"deferred — user decision\", expected exactly 1; $MULTI_TAIL. L24 would compare the mirror against whichever one came first"
+    deferred_form=""
+  elif [ "$deferred_form_n" -eq 0 ]; then
+    fail "§9's \`deferred\` rule states no backticked form opening \"deferred — user decision\"; L4 above says which literal went missing, and L24 has no form to compare the mirror against"
+  fi
 fi
 
 if [ "$rule_mirror_n" -gt 1 ]; then
