@@ -494,8 +494,9 @@ fi
 # that reads as complete. Each of the five extractions carries its own emptiness and multiplicity
 # guard and its own message, so a moved anchor at one site never silences the comparison at another.
 #
-# The three restating sites are compared to §9 by SET EQUALITY in both directions, the way L7, L8
-# and L9 compare the pass set. A literal containment test — which this clause used to be — is
+# The two restating sites are compared to §9 by SET EQUALITY in both directions, the way L7, L8
+# and L9 compare the pass set. Two, not three: the definition site is the reference the comparison
+# reads, never one of the sites compared to it. A literal containment test — which this was — is
 # stricter than the canon on order and separators, where the canon is silent, and weaker than it on
 # supersets, where the canon is not: `fix / wont-fix / defer / leave open / proceed` contains the
 # literal and would pass, at the one site where a user is actually shown the choice, offering back
@@ -544,7 +545,7 @@ menu9_count="$(unit_count "$menu9")"
 menu9_list="$(printf '%s' "$menu9" | awk '{ printf "%s%s", (NR > 1 ? ", " : ""), $0 } END { print "" }')"
 
 if [ "$menu_n" -eq 0 ]; then
-  fail "§9 carries no bullet naming a \"decision menu\"; the menu has no definition site, so the sites that state it and the site that cites it resolve to nothing"
+  fail "§9 carries no bullet naming a \"decision menu\"; the menu has no definition site, so the two sites that state it and the two that cite it all resolve to nothing"
 elif [ "$menu_n" -gt 1 ]; then
   fail "§9 carries $menu_n bullets naming a \"decision menu\", expected exactly 1; $MULTI_TAIL. A menu with two definition sites is the drift this clause exists to refuse"
 elif [ "$menu9_runs_n" -gt 1 ]; then
