@@ -27,7 +27,7 @@ date, and round. Finding rows follow this table:
 - `lens` — originating lens or judge.
 - `location` — `path:line`.
 - `severity` — one of `BLOCKER | CRITICAL | WARNING | SUGGESTION`.
-- `status` — one of `open | fixed | verified | refuted | wont-fix | info`.
+- `status` — one of `open | fixed | verified | refuted | wont-fix | deferred | info`.
 - `evidence` — concrete evidence for the finding.
 - `verification` — adversarial outcome: `refuter:corroborated|refuted|inconclusive`, `jd:both|a-only|b-only|contradiction`, or `—` (pre-verification / info rows).
 
@@ -78,7 +78,8 @@ Report a finding only if it is a real, user-impacting defect you would defend wi
 - Both judges report the same finding (matched by location and claim) → `confirmed`: status `open`, verification `jd:both`. Confirmed findings become fixable ONLY after the user is asked and approves proceeding to fix.
 - Exactly one judge reports it → `suspect`: status stays `open`, verification `jd:a-only` or `jd:b-only`. A suspect finding is NEVER auto-fixed.
 - The judges contradict each other on the same location → verification `jd:contradiction`: escalate to the human; automated handling stops for that finding.
-- Suspect and contradiction findings resolve only by user decision (fix or wont-fix).
+- Suspect and contradiction findings resolve only by user decision, from the
+  decision menu of §9.
 
 ## 8. Fix-Round Budget
 
@@ -98,17 +99,38 @@ Report a finding only if it is a real, user-impacting defect you would defend wi
 open  → refuted    (adversarial verification killed it)
 open  → fixed      (jd-fix-agent applied a fix; the coordinator records it)
 open  → wont-fix   (user decision only)
+open  → deferred   (user decision only; routed to a named destination)
 fixed → verified   (scoped re-review confirmed the fix)
 fixed → open       (scoped re-review rejected the fix)
 ```
 
+- **The user's decision menu is defined here and nowhere else**: fix / wont-fix
+  / defer / leave open. `fix` and `leave open` set no status by themselves;
+  `wont-fix` and `defer` are the two only the user may authorize, each in its
+  evidence form below, and `defer` records status `deferred`. There is no
+  `proceed` option: a row left open does not pass §11, so offering it would
+  offer an outcome the archive gate refuses.
 - `wont-fix` REQUIRES evidence appended in the exact form
   `wont-fix — user decision (YYYY-MM-DD): {reason}`. The agent NEVER sets
   wont-fix on its own; only the user authorizes it and the coordinator
   records it.
+- `deferred` REQUIRES evidence appended in the exact form
+  `deferred — user decision (YYYY-MM-DD): {destination}: {reason}`. The
+  destination segment is MANDATORY: it identifies where the finding was routed,
+  the user supplies it, and this contract stays tracker-agnostic — it names no
+  tracker and assumes none exists. Evidence carrying a reason but no
+  destination does NOT close the row: it counts as open and blocks. The agent
+  NEVER sets deferred on its own; only the user authorizes it and the
+  coordinator records it.
 - `info` is terminal: assigned once to WARNING/SUGGESTION rows, never revisited.
-- `verified`, `refuted`, and evidenced `wont-fix` are the only closed states
-  for BLOCKER/CRITICAL rows.
+- `verified`, `refuted`, evidenced `wont-fix` and evidenced `deferred` are the
+  only CLOSED states for BLOCKER/CRITICAL rows, and that set is exactly the
+  archive pass set of §11.
+- The TERMINAL states are those four plus `info`: a terminal row is resolved and
+  never revisited. Terminal is the union, closed is the BLOCKER/CRITICAL gate
+  set, and severity-floor rows are the only members of the first that are not
+  members of the second. A consumer asking §9 for the terminal states gets
+  these five.
 
 ## 10. Persistence Mapping
 
@@ -128,12 +150,26 @@ decision and lenses run (mode `none`: reported inline instead).
 
 `sdd-archive` (Step 0) enforces this rule over the persisted ledger:
 
-- BLOCK archive while any BLOCKER or CRITICAL row has a status other than
-  `verified`, `refuted`, or `wont-fix`. `open` rows, un-reverified `fixed`
-  rows, and JD suspect rows all mean the review loop did not converge — the
-  user must decide, never the agent.
+- The archive pass set is exactly the CLOSED states of §9: `verified`,
+  `refuted`, evidenced `wont-fix` and evidenced `deferred`.
+- BLOCK archive while any BLOCKER or CRITICAL row has a status outside that
+  pass set. `open` rows, un-reverified `fixed` rows, and JD suspect rows all
+  mean the review loop did not converge — the user must decide, never the
+  agent.
 - `wont-fix` counts as closed ONLY with the recorded explicit user decision
   in the §9 evidence form.
+- `deferred` counts as closed ONLY with the recorded explicit user decision in
+  the §9 evidence form, destination included.
+- A ledger whose BLOCKER/CRITICAL rows are closed only by deferred decisions
+  PASSES this gate. The archive proceeds with those findings unfixed, by
+  design, because the user routed each of them to a named destination:
+  `sdd-review` reports that ledger as `REVIEW: RESOLVED` and the cycle
+  continues to verification. This is the intended behaviour, not a hole in the
+  gate.
+- No check can validate a real ledger row. Ledgers live in the artifact store
+  or in the user's own project, while both checkers run over the plugin repo,
+  so this contract mandates the form and the reader applies it. A mandated
+  form is never a validated row.
 - If no ledger exists for the change, warn that the change was implemented
   without review and require explicit user confirmation before archiving
   (backwards compatibility for pre-review changes).

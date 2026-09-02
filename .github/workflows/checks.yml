@@ -30,6 +30,14 @@ jobs:
       - name: Envelope, enum, and guard-shape drift check
         run: ./scripts/check-envelope.sh
 
+  check-ledger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Review ledger canon and mirror drift check
+        run: ./scripts/check-ledger.sh
+
   check-models:
     runs-on: ubuntu-latest
     steps:

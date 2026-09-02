@@ -91,7 +91,7 @@ failure — the failure mode is silent inheritance, which nothing else reports.
 - **Deterministic triage**: trivial diff → 0 lenses (empty ledger still persisted); standard diff → exactly one lens by dominant risk; hot path (auth/security/payments) or over the line budget → full 4R (all four lenses); large pure-docs diff → readability only.
 - **Bounded loop**: findings land in a canonical review ledger (`skills/_shared/review-ledger-contract.md`); BLOCKER/CRITICAL candidates face adversarial refutation; a single-writer fix agent resolves confirmed findings in at most 2 rounds, with a user gate before fixes.
 - **Judgment Day** (explicit request only): two blind judges replace the lenses; only convergent findings are fixable, and contradictions escalate to the human.
-- **Archive gate**: `sdd-archive` refuses to archive while the ledger has open BLOCKER/CRITICAL rows.
+- **Archive gate**: `sdd-archive` refuses to archive while the ledger has open BLOCKER/CRITICAL rows. A severe finding the user routes elsewhere is recorded as deferred with a mandatory destination, does not block, and is listed in the archive report's audit trail.
 
 ## Phase Gate
 

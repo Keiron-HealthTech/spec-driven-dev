@@ -181,8 +181,10 @@ defined in Ledger Lifecycle and Persistence below.
    - **Persist** (post-refutation).
 5. **USER GATE (ALWAYS)** — before any round-1 fix work: present every
    surviving open BLOCKER/CRITICAL row and ask the user to approve fixing.
-   Per finding the user picks: fix / wont-fix (recorded per contract §9) /
-   leave open. No approval → go to step 8 with the rows open.
+   Per finding the user picks from the decision menu of contract §9:
+   fix / wont-fix / defer / leave open. `wont-fix` and `defer` are recorded in
+   the §9 evidence form and only the user may authorize either; `defer` also
+   requires a destination. No approval → go to step 8 with the rows open.
 6. **Fix round** — dispatch `jd-fix-agent` ONCE with the complete list of
    user-approved, verification-surviving open BLOCKER/CRITICAL rows —
    confirmed ids only, never suspects, never `info` rows. Record its
@@ -243,7 +245,7 @@ and never automatically after apply. Tier is `judgment-day`.
   | Convergence | Verification | Handling |
   |-------------|--------------|----------|
   | Both judges report it | `jd:both` | `confirmed` — fixable ONLY after the user is asked and approves |
-  | Exactly one judge reports it | `jd:a-only` / `jd:b-only` | `suspect` — the fix agent is NEVER dispatched for it; only the user resolves it (fix or wont-fix) |
+  | Exactly one judge reports it | `jd:a-only` / `jd:b-only` | `suspect` — the fix agent is NEVER dispatched for it; only the user resolves it, from the decision menu of contract §9 |
   | The judges contradict each other on the same location | `jd:contradiction` | Escalate to the human. Automated handling stops for that finding |
 
 - **No refuter**: no refuter task is dispatched anywhere in JD mode —
@@ -262,7 +264,7 @@ and never automatically after apply. Tier is `judgment-day`.
 ## Review Summary
 **Target**: {change|slug} · **Tier**: {trivial|standard|full-4r|judgment-day}
 **Lenses/Judges run**: {list} · **Fix rounds**: {0|1|2}
-**Findings**: {n} BLOCKER, {n} CRITICAL, {n} info → {n} verified, {n} refuted, {n} wont-fix, {n} open
+**Findings**: {n} BLOCKER, {n} CRITICAL, {n} info → {n} verified, {n} refuted, {n} wont-fix, {n} deferred, {n} open
 **Ledger**: {topic + observation id | path | inline}
 REVIEW: CLEAN | RESOLVED | OPEN-FINDINGS | ESCALATED
 ```
@@ -272,7 +274,7 @@ Close with exactly ONE outcome token:
 | Token | Meaning |
 |-------|---------|
 | `REVIEW: CLEAN` | Trivial tier, or the run produced zero findings |
-| `REVIEW: RESOLVED` | Findings existed and every BLOCKER/CRITICAL row closed (`verified`, `refuted`, or evidenced `wont-fix`); only `info` rows remain |
+| `REVIEW: RESOLVED` | Findings existed and every BLOCKER/CRITICAL row closed — `verified`, `refuted`, evidenced `wont-fix`, or evidenced `deferred`. Only severity-floor rows may remain (contract §5). This enumeration is a MIRROR of `skills/_shared/review-ledger-contract.md` §11 and CI asserts the two set-equal. |
 | `REVIEW: OPEN-FINDINGS` | One or more BLOCKER/CRITICAL rows remain open (round budget exhausted, or the user declined fixes) |
 | `REVIEW: ESCALATED` | At least one finding needs a human decision (JD contradiction, or a suspect row the user left unresolved) |
 
@@ -287,10 +289,15 @@ Routing (tokens per §3):
 | `CLEAN` / `RESOLVED` | `next_recommended: verify` — change-bound only; ad-hoc reviews end here and return no token |
 | `OPEN-FINDINGS` / `ESCALATED` | `next_recommended: resolve-review` — the user decides; the orchestrator MUST NOT auto-proceed to verify |
 
+A ledger whose BLOCKER/CRITICAL rows are all closed, including any closed by a
+deferred user decision, is RESOLVED and routes as RESOLVED above. Deferring a
+severe finding to a named destination resolves it for this cycle; the change
+archives with that finding unfixed, by design (contract §11).
+
 ## Rules
 
 - The coordinator is the ONLY ledger writer — agents emit rows in their replies and never persist anything.
 - The ledger schema, precision gate, severity floor, refutation ceilings, and fix-round budget are canonical in `skills/_shared/review-ledger-contract.md` — cite its sections, never redefine its numbers. Triage thresholds (the line budget) live in THIS skill only.
 - ALWAYS persist the ledger, including when it is empty (mode `none`: report it inline).
-- NEVER dispatch the fix agent for `suspect` or `info` rows, and NEVER set `wont-fix` without the user's explicit decision recorded per contract §9.
+- NEVER dispatch the fix agent for `suspect`, `info` or `deferred` rows, and NEVER set `wont-fix` or `deferred` without the user's explicit decision recorded per contract §9.
 - ALWAYS stop at the USER GATE before the first fix round — findings are fixed only with user approval.
