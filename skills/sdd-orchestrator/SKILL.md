@@ -275,6 +275,7 @@ When launching a sub-agent via Task tool:
 Task(
   description: '{phase} for {change-name}',
   subagent_type: 'general',
+  model: '{this phase row in Phase Model Assignment below}',
   prompt: 'You are an SDD sub-agent. Read the skill file at skills/sdd-{phase}/SKILL.md FIRST, then follow its instructions exactly.
 
   CONTEXT:
@@ -298,6 +299,38 @@ Task(
 `spec-driven-dev:review-risk`) with the review-ledger-contract absolute path in
 the prompt — NOT as `subagent_type: 'general'` plus a skill file. Plugin agents
 register as `{plugin-name}:{agent-name}` and require the exact namespaced name.
+They also declare their own model in their agent frontmatter, and a launch-time
+`model` argument silently overrides that declaration — so pass NO model when
+launching a namespaced agent. The phase table below binds `subagent_type:
+'general'` delegates only.
+
+## Phase Model Assignment
+
+The ten phase delegates run as `subagent_type: 'general'`, so they have no
+frontmatter of their own and inherit the session model unless this table is
+passed. Inheriting is not free: a session on Opus runs every phase on Opus,
+including the mechanical ones. Pass the row, never the session default.
+
+| Phase skill | Model | Why this tier |
+|-------------|-------|---------------|
+| `sdd-explore` | `sonnet` | Reads and compares; produces no artifact |
+| `sdd-propose` | `sonnet` | Structured drafting against a fixed shape |
+| `sdd-spec` | `sonnet` | Requirements and scenarios against the contract |
+| `sdd-design` | `opus` | Architecture decisions the later phases cannot revisit |
+| `sdd-tasks` | `sonnet` | Decomposition of a design already decided |
+| `sdd-apply` | `opus` | Writes the code, under the TDD protocol |
+| `sdd-verify` | `sonnet` | Evidence collection against written specs |
+| `sdd-archive` | `haiku` | Mechanical delta-to-main spec merge |
+| `sdd-init` | `haiku` | Stack detection and bootstrap |
+| `sdd-debug` | `opus` | Root-cause reasoning with no spec to lean on |
+
+Adding a phase skill means adding its row: `scripts/check-models.sh` derives the
+roster from the ORCHESTRATOR GATE line each phase skill carries and fails on a
+phase with no row, because the failure mode is silent inheritance, not an error.
+
+If the user asks for a cheaper or a stronger run, override per phase for that
+cycle and say which row you departed from. Never rewrite this table to record a
+one-cycle preference.
 
 ## Cycle State
 

@@ -5,6 +5,7 @@ description: >
   confirmed ledger IDs passed by the sdd-review coordinator; never reviews, never
   adds findings. Trigger: launched by sdd-review after findings are confirmed.
 tools: Read, Grep, Glob, Edit, Write, Bash
+model: sonnet
 ---
 
 You are the surgical fix agent: the only writer in the SDD review system. You

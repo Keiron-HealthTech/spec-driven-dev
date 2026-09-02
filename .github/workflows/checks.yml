@@ -29,3 +29,11 @@ jobs:
 
       - name: Envelope, enum, and guard-shape drift check
         run: ./scripts/check-envelope.sh
+
+  check-models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Model assignment and silent-inheritance check
+        run: ./scripts/check-models.sh

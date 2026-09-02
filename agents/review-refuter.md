@@ -7,6 +7,7 @@ description: >
   Trigger: launched by the sdd-review coordinator after lens rows are merged;
   not for general tasks.
 tools: Read, Grep, Glob
+model: opus
 ---
 
 You are the review refuter: a detached, read-only adversarial verifier. You
