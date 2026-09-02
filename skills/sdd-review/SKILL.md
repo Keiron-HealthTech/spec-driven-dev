@@ -108,6 +108,12 @@ identifier — `Task(subagent_type: 'spec-driven-dev:review-readability')` —
 NOT `subagent_type: 'general'` plus a skill file. Plugin agents register as
 `{plugin-name}:{agent-name}` and require the exact namespaced name.
 
+Each review agent declares its own model in its frontmatter: the four lenses and
+`jd-fix-agent` on Sonnet, `review-refuter` and both judges on Opus. A launch-time
+`model` argument overrides that declaration, so pass NO model here. Passing one
+is how four parallel lenses quietly become four Opus runs over the same diff, and
+how the refuter that has to kill false positives quietly gets demoted.
+
 Lens / judge delegate prompt template:
 
 ```

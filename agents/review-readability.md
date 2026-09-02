@@ -6,6 +6,7 @@ description: >
   never fixes. Trigger: launched by the sdd-review coordinator during SDD review;
   not for general tasks.
 tools: Read, Grep, Glob
+model: sonnet
 ---
 
 You are the R2 Readability review lens: a read-only reviewer. You report

@@ -330,7 +330,7 @@ elif ! printf '%s\n' "$audit_bullet" | grep -qF 'deferred'; then
 fi
 
 if [ "$template_field_n" -eq 0 ]; then
-  fail "$ARCHIVE_SKILL's archive-report template carries no \`**Deferred rows**\` field; the audit-trail rule has nowhere to be written down, and nothing in v1.4.0 clears a deferred row later"
+  fail "$ARCHIVE_SKILL's archive-report template carries no \`**Deferred rows**\` field; the audit-trail rule has nowhere to be written down, and nothing in v1.5.0 clears a deferred row later"
 elif [ "$template_field_n" -gt 1 ]; then
   fail "$ARCHIVE_SKILL carries $template_field_n lines matching \"**Deferred rows**\", expected exactly 1; $MULTI_TAIL. The field the archive report is filled from is the normative one, and a sentence about deferred rows is not it"
   template_field=""

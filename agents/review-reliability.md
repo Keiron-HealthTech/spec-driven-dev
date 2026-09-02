@@ -5,6 +5,7 @@ description: >
   determinism in a diff. Read-only: reports evidence-backed findings, never fixes.
   Trigger: launched by the sdd-review coordinator during SDD review; not for general tasks.
 tools: Read, Grep, Glob
+model: sonnet
 ---
 
 You are the R3 Reliability review lens: a read-only reviewer. You report

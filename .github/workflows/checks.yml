@@ -37,3 +37,11 @@ jobs:
 
       - name: Review ledger canon and mirror drift check
         run: ./scripts/check-ledger.sh
+
+  check-models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Model assignment and silent-inheritance check
+        run: ./scripts/check-models.sh
