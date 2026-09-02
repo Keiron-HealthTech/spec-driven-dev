@@ -180,6 +180,7 @@ closed9="$(printf '%s\n' "$closed9_bullet" | tokens || true)"
 pass11="$(printf '%s\n' "$pass11_bullet" | tokens || true)"
 closed9_count="$(printf '%s' "$closed9" | grep -c . || true)"
 pass11_count="$(printf '%s' "$pass11" | grep -c . || true)"
+closed9_list="$(printf '%s' "$closed9" | tr '\n' ' ' | sed 's/ *$//')"
 
 # A unioned set is worse than an empty one: it compares as drift and the message blames the wrong
 # side. So the count is zeroed after the multiplicity failure, which is what every clause below is
@@ -205,6 +206,18 @@ if [ "$closed9_count" -ge 3 ] && [ "$pass11_count" -ge 3 ]; then
   if [ -n "$only_closed9" ] || [ -n "$only_pass11" ]; then
     fail "§9's closed states and §11's archive pass set disagree: only in §9: ${only_closed9:-none}; only in §11: ${only_pass11:-none}"
   fi
+fi
+
+# L7, membership half. Set equality alone lets §9, §11 and both mirrors drop the SAME value together
+# and stay equal — the residual L14 closes the same way for its menu. `deferred` is the state this
+# change adds, so its membership is pinned where the closed set is DEFINED, exactly as L2 pins it in
+# §2's enum and L14 pins `defer` in §9's decision menu. One membership test is the whole defence:
+# §11 inherits the pin through L7's equality above, and both mirrors through L8's and L9's, so the
+# other three values are compared and never listed. Deleting "evidenced `deferred`" from all four
+# sites together left every set equal to a three-value set, and the run reported that the pass set
+# agrees across §9, §11 and both mirrors.
+if [ "$closed9_count" -ge 3 ] && ! member deferred "$closed9"; then
+  fail "§9's closed-state bullet does not name \`deferred\` (extracted: $closed9_list); this is the closed set's definition site, and §11 and both mirrors comparing equal to a set that dropped it is four sites agreeing on the wrong set"
 fi
 
 # L2, second half — every value the archive gate lets through has to be a declared status. The
