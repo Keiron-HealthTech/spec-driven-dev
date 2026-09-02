@@ -239,7 +239,7 @@ and never automatically after apply. Tier is `judgment-day`.
   | Convergence | Verification | Handling |
   |-------------|--------------|----------|
   | Both judges report it | `jd:both` | `confirmed` — fixable ONLY after the user is asked and approves |
-  | Exactly one judge reports it | `jd:a-only` / `jd:b-only` | `suspect` — the fix agent is NEVER dispatched for it; only the user resolves it (fix or wont-fix) |
+  | Exactly one judge reports it | `jd:a-only` / `jd:b-only` | `suspect` — the fix agent is NEVER dispatched for it; only the user resolves it, from the decision menu of contract §9 |
   | The judges contradict each other on the same location | `jd:contradiction` | Escalate to the human. Automated handling stops for that finding |
 
 - **No refuter**: no refuter task is dispatched anywhere in JD mode —

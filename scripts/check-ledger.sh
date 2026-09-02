@@ -407,10 +407,10 @@ else
 fi
 
 # L14 — one decision menu, defined once in §9, restated only where a user is actually shown the
-# choice, and cited everywhere else. Four sites, and the fourth is the one that gets forgotten:
-# three agreeing menus plus a fourth statement that omits an option is the partial fix that reads
-# as complete. Each of the four extractions carries its own emptiness and multiplicity guard and
-# its own message, so a moved anchor at one site never silences the comparison at another.
+# choice, and cited everywhere else. Five sites, and the citing ones are the ones that get
+# forgotten: three agreeing menus plus a further statement that omits an option is the partial fix
+# that reads as complete. Each of the five extractions carries its own emptiness and multiplicity
+# guard and its own message, so a moved anchor at one site never silences the comparison at another.
 #
 # The three restating sites are compared to §9 by SET EQUALITY in both directions, the way L7, L8
 # and L9 compare the pass set. A literal containment test — which this clause used to be — is
@@ -521,9 +521,10 @@ elif [ "$menu9_count" -ge 3 ]; then
   menu_agree "$orch_menu" "$ORCHESTRATOR's OPEN-FINDINGS bullet, where the router presents the choice"
 fi
 
-# (b) the one citing site. §7 is Judgment-Day-scoped and has no reason to hold the menu inline, so
-# it cites §9 rather than restating it. Both halves are needed: the citation alone would allow the
-# options to stay beside it, and the negative alone would allow a bare rule citing nothing.
+# (b) the two citing sites. Both are Judgment-Day-scoped and have no reason to hold the menu
+# inline, so each cites §9 rather than restating it. Both halves are needed at each site: the
+# citation alone would allow the options to stay beside it, and the negative alone would allow a
+# bare rule citing nothing.
 jd_bullet="$(printf '%s\n' "$sec7" | bullet_body 'resolve only by user decision' || true)"
 jd_bullet_n="$(unit_count "$jd_bullet")"
 
@@ -537,6 +538,27 @@ else
   fi
   if printf '%s\n' "$jd_bullet" | grep -qF 'wont-fix'; then
     fail "§7's user-decision bullet enumerates options of its own (it names \`wont-fix\`); that makes it a fourth statement of the menu, and a fourth statement is what silently omits an option"
+  fi
+fi
+
+# The second citing site is a table cell, not a bullet: the corroboration table's `suspect` row
+# hands those findings to the user, so it belongs to the category above and is asserted the same
+# way. Line-scoping is legitimate here for L9's reason — a markdown table row is one line by
+# construction, so no reflow can split it — and the row is counted for L9's other reason: a second
+# line carrying both literals would answer for a normative row that cites nothing.
+suspect_row="$(grep -F 'jd:a-only' "$REVIEW_SKILL" | grep -F '`suspect`' || true)"
+suspect_row_n="$(unit_count "$suspect_row")"
+
+if [ "$suspect_row_n" -eq 0 ]; then
+  fail "$REVIEW_SKILL carries no \`jd:a-only\` corroboration row naming \`suspect\`; the cell that hands a one-judge finding to the user moved, and unread is exactly the state in which it restates the menu"
+elif [ "$suspect_row_n" -gt 1 ]; then
+  fail "$REVIEW_SKILL carries $suspect_row_n \`jd:a-only\` rows naming \`suspect\`, expected exactly 1; $MULTI_TAIL. One row citing §9 would answer for another that enumerates the menu itself"
+else
+  if ! printf '%s\n' "$suspect_row" | grep -qF '§9'; then
+    fail "$REVIEW_SKILL's \`suspect\` corroboration row does not cite §9; the resolution set for those rows is the user's menu, and a cell naming no definition site is read as one"
+  fi
+  if printf '%s\n' "$suspect_row" | grep -qF 'wont-fix'; then
+    fail "$REVIEW_SKILL's \`suspect\` corroboration row enumerates options of its own (it names \`wont-fix\`); that makes it a further statement of the menu, and one no clause compares with §9 is what silently offers two of four options"
   fi
 fi
 
