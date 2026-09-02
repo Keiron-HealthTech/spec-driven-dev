@@ -143,8 +143,14 @@ if [ "$deferred_rule_n" -eq 0 ]; then
 elif [ "$deferred_rule_n" -gt 1 ]; then
   fail "§9 carries $deferred_rule_n bullets matching \"\`deferred\` REQUIRES\", expected exactly 1; $MULTI_TAIL. L4, L5, L6 and L21 would be reading a normative rule and a gloss of it as one text"
 else
-  # L4 — the form is exact. A row can only be checked against a form that is stated literally.
-  for literal in 'user decision' 'YYYY-MM-DD' 'deferred — user decision (YYYY-MM-DD)'; do
+  # L4 — the form is exact, to its END. A row can only be checked against a form that is stated
+  # literally. The last literal is the WHOLE form and REPLACES the prefix this clause used to stop
+  # at: `deferred — user decision (YYYY-MM-DD)` is a substring of it, so keeping both covered
+  # nothing extra and reported one defect as two findings. Stopping at the date left the
+  # `: {destination}: {reason}` tail — the segment L5 calls the only structural difference from
+  # `wont-fix` — asserted nowhere, so §9 could state a form the destination never reached while L5
+  # stayed satisfied by the prose beside it. L24 compares the mirror against this same whole form.
+  for literal in 'user decision' 'YYYY-MM-DD' 'deferred — user decision (YYYY-MM-DD): {destination}: {reason}'; do
     if ! printf '%s\n' "$deferred_rule" | grep -qF "$literal"; then
       fail "§9's \`deferred\` evidence form does not carry the literal \"$literal\"; a paraphrase of a form is not a form"
     fi
@@ -238,21 +244,25 @@ fi
 
 # L8 — sdd-archive Step 0's pass set is a MIRROR of §11 and CI asserts the two set-equal. The
 # label makes the bullet findable; the set comparison is the assertion.
+# The finder names the KIND of mirror, not the bare label: Step 0 holds two labelled copies — this
+# pass set, and the `deferred` evidence rule L24 mirrors from §9 — and a bare `MIRROR` finder
+# matches both, so this clause would fail on its own multiplicity guard the moment the second copy
+# is labelled at all. A reworded label still empties the extraction and hits the guard below.
 step0="$(awk '/^### Step 0/ { f = 1; next } f && /^### / { exit } f' "$ARCHIVE_SKILL")"
 
 if [ -z "$step0" ]; then
   fail "$ARCHIVE_SKILL has no \"### Step 0\" section; the archive gate's mirror has no home"
 fi
 
-mirror_bullet="$(printf '%s\n' "$step0" | bullet_body 'MIRROR' || true)"
+mirror_bullet="$(printf '%s\n' "$step0" | bullet_body 'inline set is a MIRROR' || true)"
 mirror_bullet_n="$(unit_count "$mirror_bullet")"
 arch_set="$(printf '%s\n' "$mirror_bullet" | tokens || true)"
 
 if [ "$mirror_bullet_n" -gt 1 ]; then
-  fail "$ARCHIVE_SKILL Step 0 carries $mirror_bullet_n bullets matching \"MIRROR\", expected exactly 1; $MULTI_TAIL. Two mirrors in one section union into a pass set that matches neither"
+  fail "$ARCHIVE_SKILL Step 0 carries $mirror_bullet_n bullets matching \"inline set is a MIRROR\", expected exactly 1; $MULTI_TAIL. Two mirrors in one section union into a pass set that matches neither"
   arch_set=""
 elif [ -z "$arch_set" ]; then
-  fail "$ARCHIVE_SKILL Step 0 carries no MIRROR-labelled pass-set bullet; L8's set comparison has nothing to read"
+  fail "$ARCHIVE_SKILL Step 0 carries no bullet labelled \"This inline set is a MIRROR\"; L8's set comparison has nothing to read"
 fi
 
 if [ "$pass11_count" -ge 3 ] && [ -n "$arch_set" ]; then
@@ -328,6 +338,56 @@ fi
 
 if ! printf '%s\n%s\n' "$audit_bullet" "$template_field" | grep -qF 'destination'; then
   fail "neither $ARCHIVE_SKILL Step 0's audit-trail bullet nor its \`**Deferred rows**\` template field names the destination; a trail recording that work was deferred but not where it went is not a trail"
+fi
+
+# L24 — the ENFORCEMENT site's copy of §9's `deferred` rule, mirrored the way L8 mirrors the pass
+# set. Step 0 restates the evidence form, the MANDATORY-destination rule and the never-set-it-
+# yourself rule, and L8's own bullet says why the copy exists: for the executor that cannot resolve
+# the contract's path. That makes this the line the fallback reader actually applies, and until now
+# no clause read it — deleting it, or stripping the two rules from it, left all four checkers green
+# and the archive executor holding "evidenced `deferred`" with no definition of "evidenced".
+# The FORM is compared, not pinned: it is extracted from §9 and asserted here, so the checker holds
+# no second copy of it and the two sites are compared on the WHOLE form rather than its prefix —
+# the residual L4 above closes at the definition site. The two RULES are pinned as literals instead,
+# because Step 0 addresses the executor in the imperative its `wont-fix` twin already uses and §9
+# speaks of the agent in the third person: the same rule in two grammars cannot be compared by
+# containment, so this half defends their PRESENCE exactly as L5 and L6 do one file over.
+deferred_form="$(printf '%s\n' "$deferred_rule" | grep -oE '`deferred — user decision[^`]*`' | tr -d '`' || true)"
+deferred_form_n="$(unit_count "$deferred_form")"
+rule_mirror="$(printf '%s\n' "$step0" | bullet_body 'inline rule is a MIRROR' || true)"
+rule_mirror_n="$(unit_count "$rule_mirror")"
+
+if [ "$deferred_form_n" -gt 1 ]; then
+  fail "§9's \`deferred\` rule states $deferred_form_n backticked forms opening \"deferred — user decision\", expected exactly 1; $MULTI_TAIL. L24 would compare the mirror against whichever one came first"
+  deferred_form=""
+elif [ "$deferred_form_n" -eq 0 ]; then
+  fail "§9's \`deferred\` rule states no backticked form opening \"deferred — user decision\"; L4 above says which literal went missing, and L24 has no form to compare the mirror against"
+fi
+
+if [ "$rule_mirror_n" -gt 1 ]; then
+  fail "$ARCHIVE_SKILL Step 0 carries $rule_mirror_n bullets matching \"inline rule is a MIRROR\", expected exactly 1; $MULTI_TAIL. A gloss carrying the form would answer for the normative rule that lost it"
+elif [ "$rule_mirror_n" -eq 0 ]; then
+  fail "$ARCHIVE_SKILL Step 0 carries no bullet labelled \"This inline rule is a MIRROR\"; the rule the fallback executor applies when it cannot resolve the contract's path is unlabelled and unread, which is the state in which deleting it keeps CI green"
+elif [ -n "$deferred_form" ]; then
+  if ! printf '%s\n' "$rule_mirror" | grep -qF "$deferred_form"; then
+    fail "$ARCHIVE_SKILL Step 0's \`deferred\` rule mirror does not carry §9's evidence form \"$deferred_form\"; the destination tail is the only structural difference from \`wont-fix\`, so two copies agreeing on the prefix are not two copies of the form"
+  fi
+  for literal in destination MANDATORY; do
+    if ! printf '%s\n' "$rule_mirror" | grep -qF "$literal"; then
+      fail "$ARCHIVE_SKILL Step 0's \`deferred\` rule mirror does not carry \"$literal\"; §9 requires the destination rather than recommending it, and a mirror that drops the requirement lets an undestined row archive"
+    fi
+  done
+  for literal in 'NEVER set deferred yourself' 'only the user can authorize it'; do
+    if ! printf '%s\n' "$rule_mirror" | grep -qF "$literal"; then
+      fail "$ARCHIVE_SKILL Step 0's \`deferred\` rule mirror does not state \"$literal\"; §9 reserves this hatch to the user, and the executor reading only this line is the one that would take it"
+    fi
+  done
+  if ! printf '%s\n' "$rule_mirror" | grep -qF 'review-ledger-contract.md'; then
+    fail "$ARCHIVE_SKILL Step 0's \`deferred\` rule mirror does not name review-ledger-contract.md; a mirror that does not say what it mirrors reads as an independent statement"
+  fi
+  if ! printf '%s\n' "$rule_mirror" | grep -qF '§9'; then
+    fail "$ARCHIVE_SKILL Step 0's \`deferred\` rule mirror does not cite §9; the section it mirrors has to be named for a reader to resolve the copy"
+  fi
 fi
 
 # L11 — NEGATIVE, both halves, plus a guard on EACH half, because an absence produced by a broken
