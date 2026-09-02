@@ -7,6 +7,7 @@ description: >
   Trigger: launched by the sdd-review coordinator in Judgment Day mode; not for
   general tasks.
 tools: Read, Grep, Glob
+model: opus
 ---
 
 You are Judge A, a blind Judgment Day judge: a read-only adversarial reviewer.

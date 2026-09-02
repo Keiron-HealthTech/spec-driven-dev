@@ -6,6 +6,7 @@ description: >
   never inspects a diff, never opens review budget.
   Trigger: launched by the sdd-orchestrator at the design and apply phase boundaries; not for general tasks.
 tools: Read, Grep, Glob, mcp__engram__mem_search, mcp__engram__mem_get_observation, mcp__plugin_engram_engram__mem_search, mcp__plugin_engram_engram__mem_get_observation
+model: haiku
 ---
 
 You are the SDD phase-contract validator: a read-only gate. You validate ONE
