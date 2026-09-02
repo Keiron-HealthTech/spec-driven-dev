@@ -317,9 +317,9 @@ if ! printf '%s\n%s\n' "$audit_bullet" "$template_field" | grep -qF 'destination
   fail "neither $ARCHIVE_SKILL Step 0's audit-trail bullet nor its \`**Deferred rows**\` template field names the destination; a trail recording that work was deferred but not where it went is not a trail"
 fi
 
-# L11 — NEGATIVE, both halves, plus a guard, because an absence produced by a broken extraction
-# reads exactly like compliance. (a) `deferred` is not a severity-floor state: §5 partitions the
-# WARNING and SUGGESTION rows that never block, so a closed BLOCKER state stated there would turn
+# L11 — NEGATIVE, both halves, plus a guard on EACH half, because an absence produced by a broken
+# extraction reads exactly like compliance. (a) `deferred` is not a severity-floor state: §5
+# partitions the WARNING and SUGGESTION rows that never block, so a closed BLOCKER state would turn
 # the floor into a second escape hatch nothing gates. (b) `deferred` is not an envelope status: the
 # ledger row's vocabulary and the phase envelope's are different closed sets that happen to share a
 # field name, and A6's prohibition on the `status: {value}` shape is that same constraint one layer
@@ -342,6 +342,7 @@ envelope_list="$(printf '%s' "$envelope_enum" | tr '\n' ' ' | sed 's/ *$//')"
 # Matched case-insensitively: the rule is that §5 does not name the state at all, and a capitalised
 # mention is the same drift written differently.
 floor_hits="$(printf '%s\n' "$sec5" | grep -inF deferred || true)"
+sec5_count="$(unit_count "$sec5")"
 
 while IFS= read -r floor_hit; do
   if [ -n "$floor_hit" ]; then
@@ -350,6 +351,14 @@ while IFS= read -r floor_hit; do
 done <<EOF
 $floor_hits
 EOF
+
+# Same hazard as the envelope half below, same shape of answer: the negative above runs first and
+# unconditionally, and this guard is additive rather than gating. §5 is reached by its `## 5.`
+# section number alone — retitling the heading leaves the extraction intact, renumbering it empties
+# it — and a negative asserted against nothing is indistinguishable from compliance.
+if [ "$sec5_count" -eq 0 ]; then
+  fail "§5's severity-floor section extraction is empty; the \`## 5.\` section number moved, so the negative above asserted an absence against text nothing read rather than against a section that does not name \`deferred\`"
+fi
 
 # The negative runs first and unconditionally, and the count guard is additive rather than gating.
 # Gated behind an exact count the negative would be unreachable by its own falsifying mutation:
