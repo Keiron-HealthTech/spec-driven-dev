@@ -9,6 +9,12 @@ Claude Code plugin for Spec-Driven Development (SDD) — a 6-phase workflow that
 /plugin install spec-driven-dev@spec-driven-dev
 ```
 
+This marketplace also hosts [keiron-planner](https://github.com/Keiron-HealthTech/keiron-planner), which plans large projects on Linear before SDD builds them:
+
+```
+/plugin install keiron-planner@spec-driven-dev
+```
+
 ## Commands
 
 | Command | Action |
