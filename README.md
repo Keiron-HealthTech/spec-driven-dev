@@ -75,24 +75,29 @@ The plugin ships 19 dedicated agents (auto-discovered from `agents/`, dispatched
 
 ## Model Assignment
 
-Every agent and every phase delegate declares its model, so a session running
-Opus does not silently run all of them on Opus. The nine agents above carry
-their model in their own frontmatter; the ten phase delegates are launched as
-`subagent_type: 'general'` and get theirs from the Phase Model Assignment table
-in `skills/sdd-orchestrator/SKILL.md`, which is the single source of truth for
-that half.
+Every agent declares its model in its own frontmatter — all nineteen, the nine
+review-and-gate agents and the ten phase delegates alike. There is no second
+declaration site and no runtime parameter that can override it: a launch-time
+`model` argument would silently win over the frontmatter, so the launch
+template never carries one (see `## Sub-Agent Launching Pattern` in
+`skills/sdd-orchestrator/SKILL.md`).
+
+A name appearing in both `## Skills` and `## Agents` above is not duplication:
+the skill is the phase's body (what it does), the agent is its dispatch
+identity (what it costs and what it may touch).
 
 The split follows what a phase actually decides. `sdd-design`, `sdd-apply`,
 `sdd-debug`, `review-refuter` and both judges run `opus` — architecture, code,
-root cause, and the verdicts that decide whether a finding is real. Drafting and
-evidence-collection phases run `sonnet`, and the mechanical ones (`sdd-init`,
-`sdd-archive`, `phase-validator`) run `haiku`. The four review lenses run
-`sonnet` because they run in parallel over one diff, which is where inheritance
-was most expensive.
+root cause, and the verdicts that decide whether a finding is real. Drafting
+and evidence-collection phases run `sonnet`, and the mechanical ones
+(`sdd-init`, `sdd-archive`, `phase-validator`) run `haiku`. The four review
+lenses run `sonnet` because they run in parallel over one diff, which is where
+inheritance was most expensive.
 
-`scripts/check-models.sh` compares this table against the frontmatter on disk and
-against the orchestrator's phase table, and treats a missing declaration as a
-failure — the failure mode is silent inheritance, which nothing else reports.
+`scripts/check-models.sh` compares every one of the nineteen declarations
+against the frontmatter on disk and against this page's `## Agents` table, and
+treats a missing declaration as a failure — the failure mode is silent
+inheritance, which nothing else reports.
 
 ## Review Workflow
 
