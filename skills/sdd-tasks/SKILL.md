@@ -13,9 +13,9 @@ metadata:
 
 > **ORCHESTRATOR GATE** — If you loaded this file with the Skill tool, you are the
 > ORCHESTRATOR: STOP. Do NOT execute these instructions inline. Launch a sub-agent with
-> `Task(subagent_type: 'general')` whose prompt names this skill file and the absolute
-> path to `skills/_shared/sdd-status-contract.md`, per the Sub-Agent Launching Pattern in
-> `skills/sdd-orchestrator/SKILL.md`. This file is for EXECUTORS.
+> `Task(subagent_type: 'spec-driven-dev:sdd-tasks')`, passing NO model argument, per the
+> Sub-Agent Launching Pattern in `skills/sdd-orchestrator/SKILL.md`, with the absolute
+> path to `skills/_shared/sdd-status-contract.md` in the prompt. This file is for EXECUTORS.
 
 ## Executor Override
 

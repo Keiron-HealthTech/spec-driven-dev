@@ -105,7 +105,7 @@ sweep budget for that tier and never triage themselves.
 
 Review agents are dedicated plugin agents. Launch them with the namespaced
 identifier — `Task(subagent_type: 'spec-driven-dev:review-readability')` —
-NOT `subagent_type: 'general'` plus a skill file. Plugin agents register as
+never a skill file loaded inline. Plugin agents register as
 `{plugin-name}:{agent-name}` and require the exact namespaced name.
 
 Each review agent declares its own model in its frontmatter: the four lenses and
