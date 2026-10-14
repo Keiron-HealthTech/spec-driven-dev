@@ -170,6 +170,9 @@ Confirm:
 - [ ] Change folder moved to archive
 - [ ] Archive contains all artifacts (proposal, specs, design, tasks)
 - [ ] Active changes directory no longer has this change
+- [ ] Domain files (`GLOSSARY.md`, `GLOSSARY-MAP.md`, `docs/adr/` and, in the map layout,
+      `{context}/docs/adr/`) untouched: they live outside `openspec/changes/` and survive archiving
+      (`skills/_shared/domain-contract.md` §1)
 
 ### Step 4: Return Summary
 
@@ -202,6 +205,9 @@ Return to the orchestrator:
 The following specs now reflect the new behavior:
 - `openspec/specs/{domain}/spec.md`
 
+### Domain Files
+Left in place: {ADRs written during this change, by path | none}
+
 ### SDD Cycle Complete
 The change has been fully planned, implemented, verified, and archived.
 Ready for the next change.
@@ -222,6 +228,7 @@ Your job is ONLY the archive (spec sync + folder move). Branch completion is han
 - Use ISO date format (YYYY-MM-DD) for archive folder prefix
 - If the merge would be destructive (removing large sections), WARN the orchestrator and ask for confirmation
 - The archive is an AUDIT TRAIL — never delete or modify archived changes
+- NEVER move, copy or delete domain files; the archive moves `openspec/changes/{change-name}/` only
 - If `openspec/changes/archive/` doesn't exist, create it
 - Apply any `rules.archive` from `openspec/config.yaml`
 - Return the canonical envelope defined in `skills/_shared/sdd-status-contract.md` §2; `status` values come from §2 and every `next_recommended` value from the CLOSED §3 vocabulary — never invent a field, a status value, or a routing token
