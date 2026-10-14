@@ -126,6 +126,8 @@ The multi-agent review system (4R lenses, Judgment Day judges, refuter, fix agen
 
 The port is deliberately partial. The parts of gentle-ai's contract that rest on its Go binary have no equivalent here, and the contract says which ones and why rather than implying full parity.
 
+The domain-language discipline (the `GLOSSARY.md` glossary, ADRs under `docs/adr/` and the three-condition test for offering one) is adapted from [mattpocock/skills](https://github.com/mattpocock/skills) by Matt Pocock, MIT licensed, Copyright (c) 2026 Matt Pocock.
+
 ## Peer Dependencies
 
 - **superpowers** (recommended) — TDD, systematic debugging, and brainstorming disciplines
