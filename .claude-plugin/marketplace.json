@@ -17,6 +17,14 @@
         "source": "url",
         "url": "https://github.com/Keiron-HealthTech/keiron-planner.git"
       }
+    },
+    {
+      "name": "crm-design-doc",
+      "description": "Arma el Design Doc de un proyecto como Artifact de Claude: diagramas, modo presentación y scan de riesgos en vivo",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/Keiron-HealthTech/crm-design-doc.git"
+      }
     }
   ]
 }
