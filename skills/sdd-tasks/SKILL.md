@@ -43,6 +43,8 @@ Read and follow `skills/_shared/persistence-contract.md` for mode resolution rul
 - If mode is `openspec`: Read and follow `skills/_shared/openspec-convention.md`.
 - If mode is `none`: Return result only. Never create or modify project files.
 
+Domain files: read and follow `skills/_shared/domain-contract.md` before you start.
+
 ## What to Do
 
 ### Step 1: Analyze the Design
