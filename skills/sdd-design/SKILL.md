@@ -42,6 +42,8 @@ Read and follow `skills/_shared/persistence-contract.md` for mode resolution rul
 - If mode is `openspec`: Read and follow `skills/_shared/openspec-convention.md`.
 - If mode is `none`: Return result only. Never create or modify project files.
 
+Domain files: read and follow `skills/_shared/domain-contract.md` before you start.
+
 ## What to Do
 
 ### Step 1: Read the Codebase
@@ -80,12 +82,14 @@ How does this map to the proposal's approach? Reference specs.}
 **Choice**: {What we chose}
 **Alternatives considered**: {What we rejected}
 **Rationale**: {Why this choice over alternatives}
+**ADR candidate**: {no | yes — passes all three tests of domain-contract.md §5}
 
 ### Decision: {Decision Title}
 
 **Choice**: {What we chose}
 **Alternatives considered**: {What we rejected}
 **Rationale**: {Why this choice over alternatives}
+**ADR candidate**: {no | yes — passes all three tests of domain-contract.md §5}
 
 ## Data Flow
 
@@ -161,4 +165,5 @@ Ready for tasks (sdd-tasks).
 - Keep ASCII diagrams simple — clarity over beauty
 - Apply any `rules.design` from `openspec/config.yaml`
 - If you have open questions that BLOCK the design, say so clearly — don't guess
+- Apply the ADR offer test in `skills/_shared/domain-contract.md` §5 to every decision; list each one that passes under `### Domain Candidates` in your `detailed_report` and never write `docs/adr/` yourself. A decision that contradicts an existing ADR says so in its Rationale, in the §2 form of that contract.
 - Return the canonical envelope defined in `skills/_shared/sdd-status-contract.md` §2; `status` values come from §2 and every `next_recommended` value from the CLOSED §3 vocabulary — never invent a field, a status value, or a routing token

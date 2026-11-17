@@ -45,3 +45,11 @@ jobs:
 
       - name: Model assignment and silent-inheritance check
         run: ./scripts/check-models.sh
+
+  check-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Domain contract and pointer drift check
+        run: ./scripts/check-domain.sh

@@ -43,6 +43,8 @@ Read and follow `skills/_shared/persistence-contract.md` for mode resolution rul
 - If mode is `openspec`: Read and follow `skills/_shared/openspec-convention.md`. Update `tasks.md` with `[x]` marks.
 - If mode is `none`: Return progress only. Do not update project artifacts.
 
+Domain files: read and follow `skills/_shared/domain-contract.md` before you start.
+
 ## What to Do
 
 ### TDD Protocol Reference

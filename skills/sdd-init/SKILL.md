@@ -34,7 +34,7 @@ Read and follow `skills/_shared/persistence-contract.md` for mode resolution rul
 
 - If mode is `engram`: Read and follow `skills/_shared/engram-convention.md`. Do not create `openspec/`.
 - If mode is `openspec`: Read and follow `skills/_shared/openspec-convention.md`. Run full bootstrap.
-- If mode is `none`: Return detected context without writing project files.
+- If mode is `none`: Return detected context without writing project files; any domain pointer snippet is returned, never applied (Step 1b).
 
 ## What to Do
 
@@ -44,6 +44,17 @@ Read the project to understand:
 - Tech stack (check package.json, go.mod, pyproject.toml, etc.)
 - Existing conventions (linters, test frameworks, CI)
 - Architecture patterns in use
+
+### Step 1b: Detect Domain Layout
+
+Apply `skills/_shared/domain-contract.md` §1 to detect the layout; this step reads only and writes nothing.
+
+1. Glob the root for `GLOSSARY-MAP.md`, `GLOSSARY.md` and `docs/adr/[0-9][0-9][0-9][0-9]-*.md`.
+2. Look for monorepo signals: `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `lerna.json`, `go.work`, `"workspaces"` in `package.json`, `[workspace]` in `Cargo.toml`.
+3. Set the layout by that contract's §1: `map`, `single` or `absent`. In the map layout, read `GLOSSARY-MAP.md` for each context's glossary path, and Glob each `{context}/docs/adr/`.
+4. Look for `CLAUDE.md`, then `AGENTS.md`, at the root. A file that already mentions `GLOSSARY.md` has the pointer: return no snippet. Exactly one found without it: return the instruction-file snippet of that contract's §3 with that file as its target; the orchestrator applies it, you never do. Both found: return the snippet and say the orchestrator must ask the user which file. Neither found: return no snippet.
+5. If `CONTEXT.md` or `CONTEXT-MAP.md` exists and no glossary file does, add one line to the summary: legacy name found, renamed upstream to `GLOSSARY.md`, adopt it with `git mv`.
+6. Create no domain file and edit no instruction file.
 
 ### Step 2: Initialize Persistence Backend
 
@@ -70,6 +81,7 @@ context: |
   Architecture: {detected patterns}
   Testing: {detected test framework}
   Style: {detected linting/formatting}
+  Domain: {layout}; glossary {path | none}; ADRs {docs/adr/ | none}
 
 rules:
   proposal:
@@ -101,7 +113,7 @@ Return a structured summary adapted to the resolved mode:
 
 #### If mode is `engram`:
 
-Persist project context following `skills/_shared/engram-convention.md` with title and topic_key `sdd-init/{project-name}`.
+Persist project context following `skills/_shared/engram-convention.md` with title and topic_key `sdd-init/{project-name}`, including the domain layout block below.
 
 Return:
 ```
@@ -116,7 +128,15 @@ Project context persisted to Engram.
 - **Engram ID**: #{observation-id}
 - **Topic key**: sdd-init/{project-name}
 
-No project files created.
+### Domain
+Domain layout: {map | single | absent}
+Glossaries: {paths | none}
+ADRs: {each ADR directory with its count | none}
+Monorepo signals: {list | none}
+Instruction file: {CLAUDE.md | AGENTS.md | both | none}; pointer: {present | snippet returned | n/a}
+Snippet: {the snippet line and its target | none}
+
+No project files created; any domain pointer snippet is returned for the orchestrator to apply (Step 1b).
 
 ### Next Steps
 Ready for /sdd-explore <topic> or /sdd-new <change-name>.
@@ -150,6 +170,14 @@ Ready for /sdd-explore <topic> or /sdd-new <change-name>.
 ### Context Detected
 {summary of detected stack and conventions}
 
+### Domain
+Domain layout: {map | single | absent}
+Glossaries: {paths | none}
+ADRs: {each ADR directory with its count | none}
+Monorepo signals: {list | none}
+Instruction file: {CLAUDE.md | AGENTS.md | both | none}; pointer: {present | snippet returned | n/a}
+Snippet: {the snippet line and its target | none}
+
 ### Recommendation
 Enable `engram` or `openspec` for artifact persistence across sessions. Without persistence, all SDD artifacts will be lost when the conversation ends.
 
@@ -160,6 +188,9 @@ Ready for /sdd-explore <topic> or /sdd-new <change-name>.
 ## Rules
 
 - NEVER create placeholder spec files - specs are created via sdd-spec during a change
+- NEVER create GLOSSARY.md, GLOSSARY-MAP.md or docs/adr/ — the glossary is born when the first term is resolved, and the orchestrator writes it (`skills/_shared/domain-contract.md` §1)
+- NEVER create the missing instruction file; return the snippet only for an existing CLAUDE.md or AGENTS.md
+- When both CLAUDE.md and AGENTS.md exist, say the orchestrator must ask the user which to update
 - ALWAYS detect the real tech stack, don't guess
 - If the project already has an `openspec/` directory, report what exists and ask the orchestrator if it should be updated
 - Keep config.yaml context CONCISE - no more than 10 lines
