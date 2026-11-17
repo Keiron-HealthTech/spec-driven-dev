@@ -97,7 +97,10 @@ Search for test files related to the change
 ├── Do tests cover happy paths?
 ├── Do tests cover edge cases?
 ├── Do tests cover error states?
-└── Flag: WARNING if scenarios lack tests, SUGGESTION if coverage could improve
+├── Is any scenario tested at more than one layer, or are there tests of declarations
+│   (decorator or route metadata, API docs, module wiring, query text)?
+└── Flag: WARNING if scenarios lack tests, SUGGESTION if coverage could improve,
+    WARNING naming the redundant test when a scenario is tested at more than one layer
 ```
 
 ### Step 4b: Run Tests (Real Execution)

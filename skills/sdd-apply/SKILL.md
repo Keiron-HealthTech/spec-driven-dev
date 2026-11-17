@@ -85,6 +85,8 @@ FOR EACH TASK:
 │   └── Read existing code and test patterns
 │
 ├── 2. RED — Write a failing test FIRST
+│   ├── Search the change's tests: if one already covers this scenario, extend it instead of adding another
+│   ├── Write the test at the layer and file the task names (see "Test Allocation" in tdd-protocol.md)
 │   ├── Write test(s) that describe the expected behavior from the spec scenarios
 │   ├── Run tests — confirm they FAIL (this proves the test is meaningful)
 │   └── If test passes immediately → the behavior already exists or the test is wrong
@@ -208,6 +210,7 @@ If superpowers is not installed, the TDD protocol in `skills/_shared/tdd-protoco
 - Verify GREEN: run test, confirm it passes, no other tests broken
 Your Step 2a provides the SDD-specific context (specs as acceptance criteria);
 the TDD protocol provides the discipline enforcement. Both apply simultaneously.
+Whichever TDD source is loaded, its "Test Allocation" rule holds: one layer per scenario, no tests of declarations.
 
 ### Tracer Bullet Awareness
 When implementing Phase 0 tasks:
@@ -217,7 +220,7 @@ When implementing Phase 0 tasks:
 
 ### Subagent-Driven Development
 When the orchestrator uses `superpowers:subagent-driven-development` for implementation:
-- Each task dispatched to a fresh implementer sub-agent
+- Each task dispatched to a fresh implementer sub-agent, with the list of tests the change already has (file and test name per scenario) so it extends them instead of duplicating
 - Two-stage review: spec compliance FIRST, then code quality
 - Model selection: cheap for 1-2 file mechanical tasks, capable for integration/design
 
