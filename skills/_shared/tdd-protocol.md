@@ -6,6 +6,17 @@
 
 If you write code before the test: delete it. No exceptions. Cannot keep as reference, cannot adapt it. Delete means delete.
 
+## Test Allocation: One Layer per Behavior
+
+TDD decides WHEN a test is written (first), not HOW MANY layers test a behavior. Each spec scenario is tested ONCE, at the cheapest layer that observes it for real. The design's Testing Strategy assigns that layer; the task names it.
+
+- For an HTTP endpoint, the default layer is an integration test through the route, which already exercises routing, guards, validation and serialization. A unit test of the controller or DTO that repeats those cases is redundant.
+- Unit tests are for pure logic with branches and for failures the integration layer cannot provoke (timeouts, a replica conflict and its retry, a third-party error).
+- Before writing a test, search the change's tests for one that already covers the scenario. If one exists, extend it; do not add a second test at another layer.
+- A new case in an existing spec file is a valid RED. TDD is not one test file per production file.
+- Do NOT test declarations: decorator or route metadata, generated API docs (swagger/OpenAPI), module or DI wiring, the text of a query. Run the route or the query instead.
+- The project's own test conventions (`CLAUDE.md`, `AGENTS.md`, its testing docs) take precedence over this section on where tests go.
+
 ## The RED-GREEN-REFACTOR Cycle
 
 ### 1. RED -- Write Failing Test
@@ -64,6 +75,8 @@ Skipping verification is a protocol violation.
 | Skip verify-RED | Test might pass for wrong reason | Always run and verify failure |
 | Add "just one more thing" in GREEN | Feature creep, untested code | One test, one behavior, one commit |
 | Refactor before green | Changing too many things at once | Get green first, then clean up |
+| Same scenario tested at several layers | Review and maintenance cost, no new coverage | One layer per scenario, the one the design assigned |
+| Testing declarations (metadata, API docs, wiring, query text) | Fails on refactors, never catches a bug the route or query test misses | Exercise the route or run the query |
 
 ## Debugging Integration
 

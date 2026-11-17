@@ -171,7 +171,7 @@ Both depend only on the proposal. Wait for BOTH, then present combined summary.
    - **USER GATE**: Present working slice, get feedback before expanding
 
 2. **Phase 1-N: Full implementation** in batches by phase
-   - Fresh sub-agent per task
+   - Fresh sub-agent per task; its prompt carries the scenario → test map built so far, so it extends existing tests instead of adding one per layer
    - TDD via `skills/_shared/tdd-protocol.md`; `superpowers:test-driven-development` complements (does not replace) if available
    - Two-stage review per task
    - After each phase batch, show progress to user

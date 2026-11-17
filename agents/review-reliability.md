@@ -44,7 +44,12 @@ a finding only with concrete evidence at a specific location:
    on built-in async waiting over custom polling.
 5. **CI escape hatches and misallocated coverage** — CI able to pass with
    `test.only` (require `forbidOnly` or equivalent); expensive E2E tests where
-   cheaper deterministic unit/integration tests should cover the behavior.
+   cheaper deterministic unit/integration tests should cover the behavior; the
+   same behavior asserted at more than one layer (e.g., a controller or DTO
+   unit test repeating cases an HTTP integration test already covers); tests of
+   declarations (decorator or route metadata, API docs, module wiring, query
+   text) when a route or query test exercises them. For these, the finding
+   names the test to delete, at SUGGESTION severity.
 
 ## Inline Invariants
 

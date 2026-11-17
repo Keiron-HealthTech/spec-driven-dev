@@ -51,7 +51,7 @@ From the design document, identify:
 
 - All files that need to be created/modified/deleted
 - The dependency order (what must come first)
-- Testing requirements per component
+- The layer and test file the design's Testing Strategy assigns to each scenario
 
 ### Step 2: Write tasks.md
 
@@ -92,16 +92,10 @@ openspec/changes/{change-name}/
 - [ ] 2.3 {Concrete action}
 - [ ] 2.4 {Concrete action}
 
-## Phase 3: {Phase Name} (e.g., Testing / Verification)
+## Phase 3: {Phase Name} (e.g., Cleanup / Documentation)
 
-- [ ] 3.1 {Write tests for ...}
-- [ ] 3.2 {Write tests for ...}
-- [ ] 3.3 {Verify integration between ...}
-
-## Phase 4: {Phase Name} (e.g., Cleanup / Documentation)
-
-- [ ] 4.1 {Update docs/comments}
-- [ ] 4.2 {Remove temporary code}
+- [ ] 3.1 {Update docs/comments}
+- [ ] 3.2 {Remove temporary code}
 ```
 
 ### Task Writing Rules
@@ -130,13 +124,11 @@ Phase 3: Integration / Wiring
   └─ Connect components, routes, UI wiring
   └─ Make everything work together
 
-Phase 4: Testing
-  └─ Unit tests, integration tests, e2e tests
-  └─ Verify against spec scenarios
-
-Phase 5: Cleanup (if needed)
+Phase 4: Cleanup (if needed)
   └─ Documentation, remove dead code, polish
 ```
+
+There is no separate testing phase: each task's test is written in that task, at the layer the design assigned to its scenario.
 
 ### Connected Pairs Registry
 
@@ -154,6 +146,8 @@ When a change spans multiple layers, each unique layer connection must be proven
 
 This is mechanical: if the connection is not in the registry, add the tracer sub-step. No judgment call required.
 
+The Phase 0 tracer bullet crosses every layer of the slice, so it registers EVERY pair it crosses, not only the first. A pair already crossed by an existing test (a route test that reaches the database crosses handler → service → repository → database) is also registered, citing that test.
+
 #### Registry Format (in the tasks artifact)
 
 Include this table after the phase overview and before task details:
@@ -161,8 +155,9 @@ Include this table after the phase overview and before task details:
 ```markdown
 | #   | Source Layer        | Target Layer           | Proven By                  |
 | --- | ------------------- | ---------------------- | -------------------------- |
-| 1   | {e.g., API handler} | {e.g., AuthService}    | Task 0.1 (tracer)          |
-| 2   | {e.g., AuthService} | {e.g., UserRepository} | Task 1.2 (tracer sub-step) |
+| 1   | {e.g., API handler} | {e.g., AuthService}    | Task 0.2 (tracer)          |
+| 2   | {e.g., AuthService} | {e.g., UserRepository} | Task 0.2 (tracer)          |
+| 3   | {e.g., AuthService} | {e.g., MailClient}     | Task 1.2 (tracer sub-step) |
 ```
 
 The registry is populated starting from Phase 0 (tracer bullet) and grows as subsequent tasks prove new connections.
@@ -180,9 +175,11 @@ When TDD is active, tasks use structured formats instead of the simple checklist
 **Files:** {exact file paths to create or modify}
 **Dependencies:** Task {x.y} must complete first
 
+**Test layer:** {layer from the design's Testing Strategy} — {test-file-path, usually an existing spec}
+
 **TDD Steps:**
 
-1. **Write test:** Create test in {test-file-path} that asserts {behavior}
+1. **Write test:** Add a case to {test-file-path} that asserts {behavior}
 2. **Verify RED:** Run {test-command}. Expect failure.
 3. **Implement:** In {file-path}, write {brief description}
 4. **Verify GREEN:** Run {test-command}. Expect pass.
@@ -214,7 +211,7 @@ Use this format when the task introduces a layer connection not yet in the Conne
 
 **Sub-step B -- Behavior (spec scenario):**
 
-1. Write test asserting {spec-driven behavior}
+1. Tighten the tracer test (or add a case beside it) to assert {spec-driven behavior}; do not write a second test for the same boundary
 2. Verify RED
 3. Implement real logic
 4. Verify GREEN
@@ -261,12 +258,13 @@ Ready for implementation (sdd-apply).
 - If TDD mode is active, the tracer bullet follows RED/GREEN/REFACTOR
 - ALWAYS reference concrete file paths in tasks
 - Tasks MUST be ordered by dependency — Phase 1 tasks shouldn't depend on Phase 2
-- Testing tasks should reference specific scenarios from the specs
+- Each spec scenario is tested at exactly ONE layer, the one in the design's Testing Strategy. NEVER add a task that tests the same scenario at another layer, and never a task that tests declarations (decorator or route metadata, API docs, module wiring, query text)
+- Each task names its test layer and test file; prefer extending an existing spec over creating one
 - Each task should be completable in ONE session (if a task feels too big, split it)
 - Use hierarchical numbering: 1.1, 1.2, 2.1, 2.2, etc.
 - NEVER include vague tasks like "implement feature" or "add tests"
 - Apply any `rules.tasks` from `openspec/config.yaml`
-- If the project uses TDD, integrate test-first tasks: RED task (write failing test) → GREEN task (make it pass) → REFACTOR task (clean up)
+- If the project uses TDD, integrate test-first tasks: RED task (write failing test) → GREEN task (make it pass) → REFACTOR task (clean up). The RED goes at the scenario's assigned layer, not one per file the task touches
 - Return the canonical envelope defined in `skills/_shared/sdd-status-contract.md` §2; `status` values come from §2 and every `next_recommended` value from the CLOSED §3 vocabulary — never invent a field, a status value, or a routing token
 - When TDD is active, use structured task formats (Standard Task or Task With Tracer Sub-Step) instead of the simple checklist
 - If a task introduces a layer connection not in the Connected Pairs registry, use the Task With Tracer Sub-Step format -- no exceptions

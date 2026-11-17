@@ -111,11 +111,11 @@ Use code blocks with the project's language.}
 
 ## Testing Strategy
 
-| Layer | What to Test | Approach |
-|-------|-------------|----------|
-| Unit | {What} | {How} |
-| Integration | {What} | {How} |
-| E2E | {What} | {How} |
+One row per spec scenario, each at ONE layer: the cheapest that observes it for real (see "Test Allocation" in `skills/_shared/tdd-protocol.md`). No scenario appears twice.
+
+| Scenario | Layer | Test file (existing or new) |
+|----------|-------|-----------------------------|
+| REQ-{id} / Scenario {n} | {Integration through the route / Unit / E2E} | {path} |
 
 ## Migration / Rollout
 
@@ -142,7 +142,7 @@ Return to the orchestrator:
 - **Approach**: {one-line technical approach}
 - **Key Decisions**: {N decisions documented}
 - **Files Affected**: {N new, M modified, K deleted}
-- **Testing Strategy**: {unit/integration/e2e coverage planned}
+- **Testing Strategy**: {N scenarios: X integration, Y unit, Z e2e — one layer each}
 
 ### Open Questions
 {List any unresolved questions, or "None"}
